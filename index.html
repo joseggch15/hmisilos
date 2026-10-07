@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="hmiSilos: inventario de silos de resina por balance de masa.">
 <title>hmiSilos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2034%2034%22%3E%3Crect%20width%3D%2234%22%20height%3D%2234%22%20rx%3D%227%22%20fill%3D%22%23003e7f%22%2F%3E%3Cpath%20d%3D%22M10%205h14v15l-4%206h-6l-4-6z%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.2%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M11.2%2014h11.6v5.6l-3.6%205.4h-4.4l-3.6-5.4z%22%20fill%3D%22%23b2dcff%22%2F%3E%3C%2Fsvg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -291,7 +292,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-<script>window.HS_BRAND = {"mode":"neutral","company":"","logoSvg":null,"plantLabel":""}; window.HS_BUILD = {"version":"0.5.0","date":"2026-10-07 02:03 UTC"};</script>
+<script>window.HS_BRAND = {"mode":"neutral","company":"","logoSvg":null,"plantLabel":""}; window.HS_BUILD = {"version":"0.5.0","date":"2026-10-07 02:05 UTC"};</script>
 <script>
 /* ── src/core/units.js ── */
 /**
@@ -4404,9 +4405,9 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
 /**
  * hmiSilos · ui/platform
  * Lo que depende de dónde se abre la app:
- *   - Dentro del visor de claude.ai: capacidades vía window.claude.use(...) (descargas, base
- *     compartida, identidad). Las descargas por enlace están bloqueadas allí.
- *   - Como archivo local (app/index.html): descargas con un enlace temporal.
+ *   - Alojada en una plataforma con capacidades: el build correspondiente define HS_HOST con
+ *     `use(nombre)` (descargas, datos compartidos). Allí las descargas por enlace están bloqueadas.
+ *   - Como página web o archivo local: descargas con un enlace temporal.
  * También guarda preferencias del equipo (idioma, tema, operador) en localStorage, siempre
  * dentro de try/catch porque puede no estar disponible.
  */
@@ -4419,7 +4420,8 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
 
   const PREFIX = 'hmiSilos.';
   const w = /** @type {any} */ (globalThis);
-  const inViewer = !!(w.claude && typeof w.claude.use === 'function');
+  const host = w.HS_HOST && typeof w.HS_HOST.use === 'function' ? w.HS_HOST : null;
+  const inViewer = !!host;
 
   const prefs = {
     /** @param {string} key @param {string | null} [fallback] */
@@ -4438,7 +4440,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
   function capability(name) {
     if (!inViewer) return Promise.resolve(null);
     if (!capabilities.has(name)) {
-      capabilities.set(name, Promise.resolve().then(() => w.claude.use(name)).catch(() => null));
+      capabilities.set(name, Promise.resolve().then(() => host.use(name)).catch(() => null));
     }
     return /** @type {Promise<any>} */ (capabilities.get(name));
   }
