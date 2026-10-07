@@ -63,6 +63,47 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4); color-scheme: dark;
 }
 
+/* Asistente: botón en la cabecera y panel lateral con los mismos tokens, tipografías y botones de la HMI.
+   Vive fuera de #main, así sobrevive al refresco periódico del panel de planta. */
+.assistant-btn { color: var(--nav-ink); }
+.assistant-btn[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.assistant-floating { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; box-shadow: var(--shadow); }
+.assistant-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; width: min(440px, 100vw);
+  display: flex; flex-direction: column; background: var(--surface); color: var(--ink);
+  border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(10, 20, 35, 0.18);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.assistant-head { background: var(--band-bg); color: var(--band-ink); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+.assistant-head .eyebrow { color: var(--band-muted); }
+.assistant-head h3 { font-size: 19px; }
+.assistant-head .icon-btn { background: transparent; color: var(--band-ink); border-color: var(--band-muted); }
+.assistant-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 16px 0; }
+.assistant-meta .spacer { flex: 1; }
+.assistant-hint { margin: 6px 16px 0; font-size: 12px; color: var(--muted); }
+.assistant-quick { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+.assistant-quick button { border: 1px solid var(--line); background: var(--surface-2); color: var(--nav-ink); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.assistant-quick button:hover { border-color: var(--accent); }
+.assistant-quick button:disabled { opacity: 0.5; cursor: not-allowed; }
+.assistant-messages { flex: 1; min-height: 120px; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; overscroll-behavior: contain; }
+.assistant-message { border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 9px 12px; font-size: 13px; background: var(--surface); overflow-wrap: anywhere; }
+.assistant-message > strong { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.assistant-message p { margin: 4px 0 0; white-space: pre-wrap; font-variant-numeric: tabular-nums; }
+.assistant-user { align-self: flex-end; max-width: 85%; background: var(--info-tint); border-color: transparent; }
+.assistant-message details { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.assistant-message summary { cursor: pointer; color: var(--nav-ink); }
+.assistant-status { min-height: 18px; margin: 0 16px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.assistant-panel form { padding: 8px 16px; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 6px; }
+.assistant-panel textarea { width: 100%; min-height: 56px; max-height: 140px; resize: vertical; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; }
+.assistant-send { display: flex; justify-content: space-between; gap: 8px; }
+.assistant-audio { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 0 16px 6px; font-size: 12px; }
+.assistant-audio label { display: inline-flex; align-items: center; gap: 5px; }
+.assistant-panel audio { width: calc(100% - 32px); height: 32px; margin: 0 16px 6px; }
+.assistant-credits { margin: 0 16px 10px; font-size: 11px; color: var(--muted); }
+.assistant-credits summary { cursor: pointer; }
+.assistant-credits p { margin: 4px 0; }
+@media (max-width: 760px) { .assistant-btn .assistant-label { display: none; } }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { min-height: 100%; }
@@ -292,7 +333,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-<script>window.HS_BRAND = {"mode":"neutral","company":"","logoSvg":null,"plantLabel":""}; window.HS_BUILD = {"version":"0.5.0","date":"2026-10-07 02:07 UTC"};</script>
+<script>window.HS_BRAND = {"mode":"neutral","company":"","logoSvg":null,"plantLabel":""}; window.HS_BUILD = {"version":"0.6.1","date":"2026-10-07 17:48 UTC"}; window.HS_ASSISTANT_WORKER = "/**\n * hmiSilos · core/units\n * Constantes y conversiones. Unidades internas SI: kg, m, m³, kg/h.\n * Los instantes son milisegundos epoch UTC; las conversiones de presentación viven en la UI.\n */\n\n(function (root, factory) {\n  const mod = factory();\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).units = mod;\n})(globalThis, function () {\n  'use strict';\n\n  const MS_PER_MINUTE = 60_000;\n  const MS_PER_HOUR = 3_600_000;\n  const MS_PER_DAY = 86_400_000;\n\n  /** Tolerancia de masa (kg) al comparar contra 0 o contra la capacidad. */\n  const MASS_EPS_KG = 1e-6;\n\n  /** @param {number} ms */\n  const msToHours = (ms) => ms / MS_PER_HOUR;\n  /** @param {number} h */\n  const hoursToMs = (h) => h * MS_PER_HOUR;\n  /** @param {number} gcm3 densidad en g/cm³ */\n  const gcm3ToKgm3 = (gcm3) => gcm3 * 1000;\n  /** @param {number} kgm3 densidad en kg/m³ */\n  const kgm3ToGcm3 = (kgm3) => kgm3 / 1000;\n  /** @param {number} deg */\n  const degToRad = (deg) => (deg * Math.PI) / 180;\n\n  /**\n   * @param {number} x\n   * @param {number} lo\n   * @param {number} hi\n   */\n  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));\n\n  /** @param {unknown} x @returns {x is number} */\n  const isFiniteNumber = (x) => typeof x === 'number' && Number.isFinite(x);\n\n  /** @param {unknown} x @returns {x is number} */\n  const isPositive = (x) => isFiniteNumber(x) && x > 0;\n\n  /**\n   * Redondeo decimal (half away from zero en la práctica para los valores de planta).\n   * @param {number} x\n   * @param {number} decimals\n   */\n  const roundTo = (x, decimals) => {\n    const f = 10 ** decimals;\n    return Math.round(x * f) / f;\n  };\n\n  return Object.freeze({\n    MS_PER_MINUTE, MS_PER_HOUR, MS_PER_DAY, MASS_EPS_KG,\n    msToHours, hoursToMs, gcm3ToKgm3, kgm3ToGcm3, degToRad,\n    clamp, isFiniteNumber, isPositive, roundTo,\n  });\n});\n\n/**\n * hmiSilos · core/geometry\n * Geometría de silos con patrón Strategy. Cada estrategia sabe validar su especificación y\n * construir un objeto Geometry con volumen total, V(nivel) y su inversa nivel(V).\n * El nivel se mide en metros desde el punto más bajo (salida de la tolva si hay cono).\n *\n * Estrategias incluidas:\n *   CYLINDER       V = π·r²·h\n *   CYLINDER_CONE  cono truncado inferior (tolva) + cilindro encima\n *                  V_cono = (π·h_c/3)·(r² + r·r_d + r_d²)\n * Para añadir otra forma basta con registerGeometry(tipo, { validate, create }).\n */\n\n(function (root, factory) {\n  const units = typeof require === 'function' ? require('./units.js') : root.HS.units;\n  const mod = factory(units);\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).geometry = mod;\n})(globalThis, /** @param {typeof import('./units.js')} units */ function (units) {\n  'use strict';\n\n  const { clamp, isFiniteNumber, isPositive, degToRad } = units;\n\n  /**\n   * Volumen de un cono truncado de altura h y radios r1, r2.\n   * @param {number} h @param {number} r1 @param {number} r2\n   */\n  function frustumVolume(h, r1, r2) {\n    return ((Math.PI * h) / 3) * (r1 * r1 + r1 * r2 + r2 * r2);\n  }\n\n  /**\n   * Altura del cono a partir del ángulo de la tolva medido desde la horizontal.\n   * @param {number} radiusM @param {number} dischargeRadiusM @param {number} angleDeg\n   */\n  function coneHeightFromAngle(radiusM, dischargeRadiusM, angleDeg) {\n    return (radiusM - dischargeRadiusM) * Math.tan(degToRad(angleDeg));\n  }\n\n  /** @type {Map<string, GeometryStrategy>} */\n  const registry = new Map();\n\n  /** @param {string} type @param {GeometryStrategy} strategy */\n  function registerGeometry(type, strategy) {\n    registry.set(type, strategy);\n  }\n\n  function geometryTypes() {\n    return [...registry.keys()];\n  }\n\n  /** @param {any} spec @returns {Issue[]} */\n  function validateGeometrySpec(spec) {\n    if (!spec || !registry.has(spec.type)) {\n      return [{ field: 'type', code: 'GEOMETRY_TYPE_UNKNOWN', params: { type: spec && spec.type } }];\n    }\n    return /** @type {GeometryStrategy} */ (registry.get(spec.type)).validate(spec);\n  }\n\n  /**\n   * @param {GeometrySpec} spec\n   * @returns {Geometry}\n   */\n  function createGeometry(spec) {\n    const issues = validateGeometrySpec(spec);\n    if (issues.length) {\n      const err = /** @type {Error & {issues?: Issue[]}} */ (\n        new Error('Invalid geometry: ' + issues.map((i) => `${i.field}:${i.code}`).join(', '))\n      );\n      err.issues = issues;\n      throw err;\n    }\n    return Object.freeze(/** @type {GeometryStrategy} */ (registry.get(spec.type)).create(spec));\n  }\n\n  /** @param {any} spec @param {string[]} fields @returns {Issue[]} */\n  function requirePositive(spec, fields) {\n    return fields\n      .filter((f) => !isPositive(spec[f]))\n      .map((f) => ({ field: f, code: 'MUST_BE_POSITIVE' }));\n  }\n\n  registerGeometry('CYLINDER', {\n    validate: (spec) => requirePositive(spec, ['radiusM', 'heightM']),\n    create: ({ radiusM: r, heightM: h }) => {\n      const area = Math.PI * r * r;\n      const total = area * h;\n      return {\n        type: 'CYLINDER',\n        radiusM: r,\n        totalHeightM: h,\n        totalVolumeM3: total,\n        volumeAt: (y) => area * clamp(y, 0, h),\n        levelAt: (v) => clamp(v, 0, total) / area,\n        sections: [{ kind: 'CYLINDER', y0: 0, y1: h, rBottom: r, rTop: r }],\n      };\n    },\n  });\n\n  registerGeometry('CYLINDER_CONE', {\n    validate: (spec) => {\n      const issues = requirePositive(spec, ['radiusM', 'heightM', 'coneHeightM']);\n      const rd = spec.dischargeRadiusM;\n      if (!isFiniteNumber(rd) || rd < 0) {\n        issues.push({ field: 'dischargeRadiusM', code: 'MUST_BE_NON_NEGATIVE' });\n      } else if (isPositive(spec.radiusM) && rd >= spec.radiusM) {\n        issues.push({ field: 'dischargeRadiusM', code: 'MUST_BE_LESS_THAN_RADIUS' });\n      }\n      return issues;\n    },\n    create: ({ radiusM: r, heightM: h, coneHeightM: hc, dischargeRadiusM: rd }) => {\n      const area = Math.PI * r * r;\n      const coneVolume = frustumVolume(hc, r, rd);\n      const total = coneVolume + area * h;\n      const totalHeight = hc + h;\n      // Radio del cono a la altura y: r(y) = rd + k·y. Con el ápice virtual bajo la salida,\n      // V(y) = π/(3k)·(r(y)³ − rd³), cuya inversa es cerrada (raíz cúbica).\n      const k = (r - rd) / hc;\n      return {\n        type: 'CYLINDER_CONE',\n        radiusM: r,\n        totalHeightM: totalHeight,\n        totalVolumeM3: total,\n        coneVolumeM3: coneVolume,\n        volumeAt: (y) => {\n          const yy = clamp(y, 0, totalHeight);\n          if (yy <= hc) return frustumVolume(yy, rd, rd + k * yy);\n          return coneVolume + area * (yy - hc);\n        },\n        levelAt: (v) => {\n          const vv = clamp(v, 0, total);\n          if (vv <= coneVolume) {\n            const ry = Math.cbrt((3 * k * vv) / Math.PI + rd ** 3);\n            return (ry - rd) / k;\n          }\n          return hc + (vv - coneVolume) / area;\n        },\n        sections: [\n          { kind: 'CONE', y0: 0, y1: hc, rBottom: rd, rTop: r },\n          { kind: 'CYLINDER', y0: hc, y1: totalHeight, rBottom: r, rTop: r },\n        ],\n      };\n    },\n  });\n\n  /** Modos de captura de una medición física para un ajuste de inventario. */\n  const MEASUREMENT_MODES = Object.freeze({ KG: 'KG', LEVEL_M: 'LEVEL_M', ULLAGE_M: 'ULLAGE_M' });\n\n  /**\n   * Convierte una medición física a masa (kg) usando la densidad aparente.\n   * LEVEL_M  = nivel desde la salida; ULLAGE_M = distancia desde la boca superior al pellet.\n   * @param {Geometry} geom\n   * @param {number | null} bulkDensityKgM3\n   * @param {string} mode\n   * @param {number} value\n   * @returns {{massKg: number | null, issues: Issue[]}}\n   */\n  function massFromMeasurement(geom, bulkDensityKgM3, mode, value) {\n    if (!isFiniteNumber(value) || value < 0) {\n      return { massKg: null, issues: [{ field: 'value', code: 'MUST_BE_NON_NEGATIVE' }] };\n    }\n    if (mode === MEASUREMENT_MODES.KG) return { massKg: value, issues: [] };\n    if (mode !== MEASUREMENT_MODES.LEVEL_M && mode !== MEASUREMENT_MODES.ULLAGE_M) {\n      return { massKg: null, issues: [{ field: 'mode', code: 'MEASUREMENT_MODE_UNKNOWN' }] };\n    }\n    if (!isPositive(bulkDensityKgM3)) {\n      return { massKg: null, issues: [{ field: 'bulkDensityKgM3', code: 'NO_MATERIAL_DENSITY' }] };\n    }\n    if (value > geom.totalHeightM) {\n      return {\n        massKg: null,\n        issues: [{ field: 'value', code: 'EXCEEDS_SILO_HEIGHT', params: { maxM: geom.totalHeightM } }],\n      };\n    }\n    const level = mode === MEASUREMENT_MODES.LEVEL_M ? value : geom.totalHeightM - value;\n    return { massKg: geom.volumeAt(level) * bulkDensityKgM3, issues: [] };\n  }\n\n  return Object.freeze({\n    MEASUREMENT_MODES,\n    frustumVolume, coneHeightFromAngle,\n    registerGeometry, geometryTypes, validateGeometrySpec, createGeometry,\n    massFromMeasurement,\n  });\n});\n\n/**\n * hmiSilos · core/flow\n * Flujo másico de salida de la válvula rotativa.\n *   DIRECT      Q [kg/h] leído del gravimétrico (o ingresado).\n *   VOLUMETRIC  Q = RPM · 60 · V_rev [m³/rev] · η_llenado · ρ_aparente  → kg/h\n * El modo configurado es la preferencia; si al periodo le falta el dato de ese modo pero\n * tiene el del otro, se usa el otro y se informa como fallback.\n */\n\n(function (root, factory) {\n  const units = typeof require === 'function' ? require('./units.js') : root.HS.units;\n  const mod = factory(units);\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).flow = mod;\n})(globalThis, /** @param {typeof import('./units.js')} units */ function (units) {\n  'use strict';\n\n  const { isFiniteNumber, isPositive } = units;\n\n  const FLOW_MODES = Object.freeze({ DIRECT: 'DIRECT', VOLUMETRIC: 'VOLUMETRIC' });\n\n  /**\n   * @param {{rpm: number, vRevM3: number, eta: number, bulkDensityKgM3: number}} p\n   * @returns {number} kg/h\n   */\n  function volumetricFlowKgH({ rpm, vRevM3, eta, bulkDensityKgM3 }) {\n    return rpm * 60 * vRevM3 * eta * bulkDensityKgM3;\n  }\n\n  /**\n   * Flujo másico de un periodo de operación según la configuración vigente.\n   * @param {{mode?: string, vRevM3?: number | null, eta?: number | null} | null | undefined} config\n   * @param {FlowReading | null | undefined} reading\n   * @param {number | null} bulkDensityKgM3\n   * @returns {ResolvedFlow} flowKgH = null si no hay datos suficientes en ningún modo\n   */\n  function resolveFlow(config, reading, bulkDensityKgM3) {\n    if (!reading) return { flowKgH: 0, basis: null, fallback: false };\n    const mode = (config && config.mode) || FLOW_MODES.DIRECT;\n    const { flowKgH, rpm } = reading;\n    const direct = isFiniteNumber(flowKgH) && flowKgH >= 0 ? flowKgH : null;\n    /** @type {number | null} */ let volumetric = null;\n    if (config && isPositive(config.vRevM3) && isPositive(config.eta) &&\n        isFiniteNumber(rpm) && rpm >= 0 && isPositive(bulkDensityKgM3)) {\n      volumetric = volumetricFlowKgH({ rpm, vRevM3: config.vRevM3, eta: config.eta, bulkDensityKgM3 });\n    }\n    /** @type {[number | null, string][]} */\n    const preferred = mode === FLOW_MODES.VOLUMETRIC\n      ? [[volumetric, FLOW_MODES.VOLUMETRIC], [direct, FLOW_MODES.DIRECT]]\n      : [[direct, FLOW_MODES.DIRECT], [volumetric, FLOW_MODES.VOLUMETRIC]];\n    for (const [value, basis] of preferred) {\n      if (value != null) return { flowKgH: value, basis, fallback: basis !== mode };\n    }\n    return { flowKgH: null, basis: null, fallback: false };\n  }\n\n  /**\n   * η de llenado calculada con el flujo real del gravimétrico y las RPM simultáneas.\n   * @param {{flowKgH: number, rpm: number, vRevM3: number, bulkDensityKgM3: number}} p\n   * @returns {number | null}\n   */\n  function etaFromGravimetric({ flowKgH, rpm, vRevM3, bulkDensityKgM3 }) {\n    if (!isPositive(flowKgH) || !isPositive(rpm) || !isPositive(vRevM3) || !isPositive(bulkDensityKgM3)) {\n      return null;\n    }\n    return flowKgH / (rpm * 60 * vRevM3 * bulkDensityKgM3);\n  }\n\n  /**\n   * RPM necesarias para entregar un flujo dado (ayuda de operación).\n   * @param {{flowKgH: number, vRevM3: number, eta: number, bulkDensityKgM3: number}} p\n   * @returns {number | null}\n   */\n  function rpmForFlow({ flowKgH, vRevM3, eta, bulkDensityKgM3 }) {\n    if (!isFiniteNumber(flowKgH) || flowKgH < 0 || !isPositive(vRevM3) || !isPositive(eta) || !isPositive(bulkDensityKgM3)) {\n      return null;\n    }\n    return flowKgH / (60 * vRevM3 * eta * bulkDensityKgM3);\n  }\n\n  return Object.freeze({ FLOW_MODES, volumetricFlowKgH, resolveFlow, etaFromGravimetric, rpmForFlow });\n});\n\n/**\n * hmiSilos · core/balance\n * Motor de balance de masa por silo (event sourcing):\n *\n *   m(t) = m₀ + Σ recepciones − ∫ Q_salida(t) dt + Σ ajustes,   0 ≤ m(t) ≤ Cap\n *\n * Se reproduce el historial en orden cronológico. Las \"fronteras\" son los instantes en que algo\n * cambia (recepción, ajuste, asignación de material, inicio/fin de periodo de rotativa, nueva\n * versión de configuración de la rotativa o de densidad). Entre dos fronteras Q es constante y\n * m(t) es lineal; si m llega a 0 dentro de un tramo se calcula el instante exacto de vaciado y\n * desde ahí el flujo efectivo es 0 (\"vacío con rotativa activa\").\n *\n * Nada se descarta en silencio: cada recorte o inconsistencia queda en `flags`.\n * Función pura: no lee el reloj; el instante de corte llega en `until`.\n */\n\n(function (root, factory) {\n  const req = typeof require === 'function';\n  const units = req ? require('./units.js') : root.HS.units;\n  const geometry = req ? require('./geometry.js') : root.HS.geometry;\n  const flow = req ? require('./flow.js') : root.HS.flow;\n  const mod = factory(units, geometry, flow);\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).balance = mod;\n})(globalThis, /**\n   * @param {typeof import('./units.js')} units\n   * @param {typeof import('./geometry.js')} geometry\n   * @param {typeof import('./flow.js')} flow\n   */\n  function (units, geometry, flow) {\n  'use strict';\n\n  const { MS_PER_HOUR, MASS_EPS_KG, isFiniteNumber } = units;\n\n  /**\n   * Versión vigente en t: la de mayor effectiveFrom ≤ t. Si ninguna rige todavía, la más antigua\n   * (mejor dato disponible para registros anteriores a la creación del catálogo).\n   * @template {Versioned} T\n   * @param {T[] | undefined} versions\n   * @param {number} t\n   * @returns {T | null}\n   */\n  function versionAt(versions, t) {\n    if (!versions || !versions.length) return null;\n    /** @type {T | null} */ let best = null;\n    /** @type {T | null} */ let earliest = null;\n    for (const v of versions) {\n      if (v.voided) continue;\n      if (!earliest || v.effectiveFrom < earliest.effectiveFrom) earliest = v;\n      if (v.effectiveFrom <= t && (!best || v.effectiveFrom >= best.effectiveFrom)) best = v;\n    }\n    return best || earliest;\n  }\n\n  const EVENT_ORDER = /** @type {const} */ ({ ASSIGN: 0, ADJUST: 1, RECEIVE: 2 });\n\n  /**\n   * @param {SimulationInput} input\n   * @returns {SimulationResult}\n   */\n  function simulateSilo(input) {\n    const geom = geometry.createGeometry(input.geometry);\n    const until = input.until;\n    if (!isFiniteNumber(until)) throw new Error('simulateSilo: `until` must be a finite timestamp');\n    const totalV = geom.totalVolumeM3;\n    const props = input.materialProps || {};\n    const configs = (input.valveConfigs || []).filter((c) => !c.voided);\n\n    /** @param {string | null} materialId @param {number} t */\n    const densityAt = (materialId, t) => {\n      if (!materialId) return null;\n      const v = versionAt(props[materialId], t);\n      return v ? v.bulkDensityKgM3 : null;\n    };\n    /** @param {string | null} materialId @param {number} t */\n    const capacityAt = (materialId, t) => {\n      const rho = densityAt(materialId, t);\n      return rho ? totalV * rho : null;\n    };\n\n    const periods = (input.periods || [])\n      .filter((p) => !p.voided && p.start <= until)\n      .map((p) => ({ ...p, endEff: Math.min(p.end == null ? Infinity : p.end, until) }))\n      .sort((a, b) => a.start - b.start);\n\n    /** @type {{kind: keyof typeof EVENT_ORDER, ts: number, seq: number, src: any}[]} */\n    const events = [];\n    let seq = 0;\n    for (const a of input.assignments || []) if (!a.voided && a.ts <= until) events.push({ kind: 'ASSIGN', ts: a.ts, seq: seq++, src: a });\n    for (const a of input.adjustments || []) if (!a.voided && a.ts <= until) events.push({ kind: 'ADJUST', ts: a.ts, seq: seq++, src: a });\n    for (const r of input.receptions || []) if (!r.voided && r.ts <= until) events.push({ kind: 'RECEIVE', ts: r.ts, seq: seq++, src: r });\n    events.sort((a, b) => a.ts - b.ts || EVENT_ORDER[a.kind] - EVENT_ORDER[b.kind] || a.seq - b.seq);\n\n    // La historia empieza con la primera actividad del silo (evento o periodo de rotativa).\n    const start = Math.min(until, events.length ? events[0].ts : Infinity, periods.length ? periods[0].start : Infinity);\n    const times = new Set([start, until]);\n    for (const e of events) times.add(e.ts);\n    for (const p of periods) { times.add(p.start); times.add(p.endEff); }\n    for (const c of configs) times.add(c.effectiveFrom);\n    for (const list of Object.values(props)) for (const v of list || []) times.add(v.effectiveFrom);\n    const boundaries = [...times].filter((t) => t >= start && t <= until).sort((a, b) => a - b);\n\n    let m = 0;\n    /** @type {string | null} */ let materialId = null;\n    /** @type {number | null} */ let lastAdjustmentTs = null;\n    /** @type {MassPoint[]} */ const points = [];\n    /** @type {ConsumptionSegment[]} */ const segments = [];\n    /** @type {{start: number, end: number, periodId: string}[]} */ const emptyRunning = [];\n    /** @type {BalanceFlag[]} */ const flags = [];\n    /** @type {AppliedAdjustment[]} */ const appliedAdjustments = [];\n    /** @type {AppliedReception[]} */ const appliedReceptions = [];\n    const totals = { receivedKg: 0, consumedKg: 0, adjustmentDeltaKg: 0, excessKg: 0 };\n    const flaggedOnce = new Set();\n\n    /** @param {string} code @param {number} ts @param {string | null} refId @param {Record<string, unknown>} [data] */\n    const flag = (code, ts, refId, data = {}) => flags.push({ code, ts, refId, data });\n    /** @param {string} code @param {number} ts @param {string} refId @param {Record<string, unknown>} [data] */\n    const flagOnce = (code, ts, refId, data) => {\n      const key = code + '|' + refId;\n      if (flaggedOnce.has(key)) return;\n      flaggedOnce.add(key);\n      flag(code, ts, refId, data);\n    };\n\n    /** @param {number} t */\n    const pushPoint = (t) => {\n      const rho = densityAt(materialId, t);\n      const last = points[points.length - 1];\n      if (last && last.t === t && last.massKg === m && last.materialId === materialId && last.bulkDensityKgM3 === rho) return;\n      points.push({ t, massKg: m, materialId, bulkDensityKgM3: rho, levelPct: rho ? ((m / rho) / totalV) * 100 : null });\n    };\n\n    /** @param {number} a @param {number} b @param {string} periodId */\n    const addEmptyRunning = (a, b, periodId) => {\n      const last = emptyRunning[emptyRunning.length - 1];\n      if (last && last.end === a && last.periodId === periodId) last.end = b;\n      else emptyRunning.push({ start: a, end: b, periodId });\n    };\n\n    /** @param {number} t */\n    const activePeriodsAt = (t) => periods.filter((p) => p.start <= t && t < p.endEff);\n\n    /** Consumo entre dos fronteras consecutivas. @param {number} t0 @param {number} t1 */\n    function integrate(t0, t1) {\n      const active = activePeriodsAt(t0);\n      if (!active.length) return;\n      const period = active[active.length - 1];\n      if (active.length > 1) flagOnce('PERIOD_OVERLAP', t0, period.id, { periodIds: active.map((p) => p.id) });\n      const cfg = versionAt(configs, t0);\n      const rho = densityAt(materialId, t0);\n      const r = flow.resolveFlow(cfg, period, rho);\n      if (r.flowKgH == null) { flagOnce('MISSING_FLOW', t0, period.id); return; }\n      if (r.fallback) flagOnce('FLOW_MODE_FALLBACK', t0, period.id, { mode: cfg && cfg.mode, basis: r.basis });\n      const q = r.flowKgH;\n      if (q <= 0) return;\n      if (m <= MASS_EPS_KG) { m = 0; addEmptyRunning(t0, t1, period.id); return; }\n      const demand = q * ((t1 - t0) / MS_PER_HOUR);\n      /** @type {ConsumptionSegment} */\n      const seg = {\n        t0, t1, flowKgH: q, consumedKg: demand, periodId: period.id, basis: r.basis, fallback: r.fallback,\n        rpm: isFiniteNumber(period.rpm) ? period.rpm : null,\n        eta: cfg && isFiniteNumber(cfg.eta) ? cfg.eta : null,\n        vRevM3: cfg && isFiniteNumber(cfg.vRevM3) ? cfg.vRevM3 : null,\n        bulkDensityKgM3: rho, reachedZero: false,\n      };\n      if (demand < m) {\n        m -= demand;\n      } else {\n        const tEmpty = t0 + (m / q) * MS_PER_HOUR;\n        seg.t1 = tEmpty;\n        seg.consumedKg = m;\n        seg.reachedZero = true;\n        m = 0;\n        pushPoint(tEmpty);\n        if (tEmpty < t1) addEmptyRunning(tEmpty, t1, period.id);\n      }\n      totals.consumedKg += seg.consumedKg;\n      segments.push(seg);\n    }\n\n    /** @param {{kind: string, ts: number, src: any}} e */\n    function apply(e) {\n      const s = e.src;\n      const refId = s.id == null ? null : s.id;\n      if (e.kind === 'ASSIGN') {\n        const next = s.materialId == null ? null : s.materialId;\n        if (next !== materialId && m > MASS_EPS_KG) {\n          flag('MATERIAL_CHANGE_NOT_EMPTY', e.ts, refId, { massKg: m, from: materialId, to: next });\n        }\n        materialId = next;\n        return;\n      }\n      const cap = capacityAt(materialId, e.ts);\n      if (e.kind === 'ADJUST') {\n        const before = m;\n        let measured = Math.max(0, s.measuredMassKg);\n        if (cap != null && measured > cap + MASS_EPS_KG) {\n          flag('ADJUSTMENT_ABOVE_CAPACITY', e.ts, refId, { measuredKg: measured, capacityKg: cap });\n          measured = cap;\n        }\n        if (materialId == null && measured > MASS_EPS_KG) flag('MASS_WITHOUT_MATERIAL', e.ts, refId, { massKg: measured });\n        m = measured;\n        lastAdjustmentTs = e.ts;\n        totals.adjustmentDeltaKg += m - before;\n        appliedAdjustments.push({ id: refId, ts: e.ts, type: s.type || null, estimatedKg: before, measuredKg: m, deltaKg: m - before });\n        return;\n      }\n      // RECEIVE\n      if (materialId == null) flag('NO_MATERIAL_ASSIGNED', e.ts, refId, { received: s.materialId });\n      else if (s.materialId !== materialId) flag('MATERIAL_MISMATCH', e.ts, refId, { expected: materialId, received: s.materialId });\n      let next = m + s.massKg;\n      let excess = 0;\n      if (cap != null && next > cap + MASS_EPS_KG) {\n        excess = next - cap;\n        next = cap;\n        flag('OVER_CAPACITY', e.ts, refId, { excessKg: excess, capacityKg: cap, forced: !!s.forced });\n        totals.excessKg += excess;\n      }\n      totals.receivedKg += s.massKg;\n      appliedReceptions.push({ id: refId, ts: e.ts, massKg: s.massKg, beforeKg: m, afterKg: next, excessKg: excess });\n      m = next;\n    }\n\n    let t = boundaries[0];\n    let ei = 0;\n    pushPoint(t);\n    for (const b of boundaries) {\n      if (b > t) { integrate(t, b); t = b; pushPoint(t); }\n      while (ei < events.length && events[ei].ts === b) { apply(events[ei++]); pushPoint(t); }\n    }\n    if (m < MASS_EPS_KG) m = 0;\n\n    // Estado en `until`\n    const rho = densityAt(materialId, until);\n    const capacityKg = rho ? totalV * rho : null;\n    const volumeM3 = rho ? m / rho : m === 0 ? 0 : null;\n    const running = periods.filter((p) => p.start <= until && (p.end == null || p.end > until)).pop() || null;\n    const cfg = versionAt(configs, until);\n    const resolved = running ? flow.resolveFlow(cfg, running, rho) : { flowKgH: 0, basis: null };\n    const nominalFlowKgH = resolved.flowKgH;\n    const effectiveFlowKgH = m > 0 && nominalFlowKgH ? nominalFlowKgH : 0;\n    const hoursRemaining = effectiveFlowKgH > 0 ? m / effectiveFlowKgH : null;\n\n    /** @type {SiloState} */\n    const state = {\n      t: until,\n      massKg: m,\n      materialId,\n      bulkDensityKgM3: rho,\n      capacityKg,\n      availableKg: capacityKg == null ? null : Math.max(0, capacityKg - m),\n      totalVolumeM3: totalV,\n      volumeM3,\n      levelM: volumeM3 == null ? null : geom.levelAt(volumeM3),\n      levelPct: volumeM3 == null ? null : (volumeM3 / totalV) * 100,\n      valveRunning: !!running,\n      activePeriodId: running ? running.id : null,\n      flowBasis: resolved.basis,\n      nominalFlowKgH,\n      effectiveFlowKgH,\n      hoursRemaining,\n      emptyAt: hoursRemaining == null ? null : until + hoursRemaining * MS_PER_HOUR,\n      lastAdjustmentTs,\n    };\n\n    return {\n      geometry: geom,\n      points,\n      segments,\n      emptyRunning,\n      flags,\n      adjustments: appliedAdjustments,\n      receptions: appliedReceptions,\n      totals,\n      state,\n    };\n  }\n\n  /**\n   * Masa en el instante t interpolando la serie de puntos (en un salto vale el valor posterior).\n   * @param {MassPoint[]} points\n   * @param {number} t\n   */\n  function massAt(points, t) {\n    if (!points.length) return 0;\n    if (t < points[0].t) return 0;\n    let lo = 0;\n    let hi = points.length - 1;\n    if (t >= points[hi].t) return points[hi].massKg;\n    while (hi - lo > 1) {\n      const mid = (lo + hi) >> 1;\n      if (points[mid].t <= t) lo = mid; else hi = mid;\n    }\n    while (lo + 1 < points.length && points[lo + 1].t === t) lo++;\n    const a = points[lo];\n    const b = points[lo + 1];\n    if (a.t === t || b.t === a.t) return a.massKg;\n    return a.massKg + ((b.massKg - a.massKg) * (t - a.t)) / (b.t - a.t);\n  }\n\n  /**\n   * Masa en el instante t ANTES de aplicar los eventos de ese instante (apertura y cierre de\n   * periodos contables: una recepción a las 00:00 pertenece al día que empieza).\n   * @param {MassPoint[]} points\n   * @param {number} t\n   */\n  function massBefore(points, t) {\n    if (!points.length || t < points[0].t) return 0;\n    let lo = 0;\n    let hi = points.length;\n    while (lo < hi) {\n      const mid = (lo + hi) >> 1;\n      if (points[mid].t < t) lo = mid + 1; else hi = mid;\n    }\n    if (lo === points.length) return points[points.length - 1].massKg;\n    const b = points[lo];\n    if (b.t === t || lo === 0) return b.massKg;\n    const a = points[lo - 1];\n    return a.massKg + ((b.massKg - a.massKg) * (t - a.t)) / (b.t - a.t);\n  }\n\n  return Object.freeze({ versionAt, simulateSilo, massAt, massBefore });\n});\n\n/**\n * hmiSilos · core/alerts\n * Alertas derivadas de una simulación (core/balance) y semáforo por silo.\n * Las alertas de estado (nivel bajo/alto, vacío con rotativa) son intervalos: tEnd = null\n * significa que siguen activas en el instante de corte. Las de evento (rebose, material) son\n * instantáneas. El reconocimiento (ACK) lo guarda la capa de servicios con el `id` estable.\n */\n\n(function (root, factory) {\n  const mod = factory();\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).alerts = mod;\n})(globalThis, function () {\n  'use strict';\n\n  const SEVERITY = Object.freeze({ INFO: 'INFO', WARNING: 'WARNING', CRITICAL: 'CRITICAL' });\n  const RULES = Object.freeze({\n    LOW_LEVEL: 'LOW_LEVEL',\n    HIGH_LEVEL: 'HIGH_LEVEL',\n    OVERFLOW_RISK: 'OVERFLOW_RISK',\n    EMPTY_RUNNING: 'EMPTY_RUNNING',\n    MATERIAL_MISMATCH: 'MATERIAL_MISMATCH',\n  });\n  const LIGHTS = Object.freeze({ GREEN: 'GREEN', YELLOW: 'YELLOW', RED: 'RED', GREY: 'GREY' });\n  const DEFAULT_SEMAPHORE = Object.freeze({ redHours: 8, yellowHours: 24 });\n\n  /**\n   * Intervalos en los que el nivel (%) cumple la condición respecto al umbral. El nivel es lineal\n   * dentro de cada tramo entre puntos (densidad y material constantes en el tramo), así que el\n   * cruce se interpola. Los tramos sin material no evalúan nivel.\n   * @param {MassPoint[]} points\n   * @param {number} totalVolumeM3\n   * @param {number} thresholdPct\n   * @param {boolean} below  true: nivel < umbral; false: nivel > umbral\n   * @returns {{start: number, end: number | null}[]}\n   */\n  function thresholdIntervals(points, totalVolumeM3, thresholdPct, below) {\n    /** @param {number} v */\n    const cond = (v) => (below ? v < thresholdPct : v > thresholdPct);\n    /** @type {{start: number, end: number | null}[]} */ const out = [];\n    /** @type {{start: number, end: number | null} | null} */ let open = null;\n    /** @param {number} t */\n    const close = (t) => {\n      if (!open) return;\n      if (t > open.start) out.push({ start: open.start, end: t });\n      open = null;\n    };\n    for (let i = 0; i < points.length; i++) {\n      const p = points[i];\n      const rho = p.bulkDensityKgM3;\n      if (rho == null) { close(p.t); continue; }\n      const pct = (/** @type {number} */ m) => ((m / rho) / totalVolumeM3) * 100;\n      const v0 = pct(p.massKg);\n      if (cond(v0)) { if (!open) open = { start: p.t, end: null }; } else close(p.t);\n      const next = points[i + 1];\n      if (!next || next.t === p.t) continue;\n      const v1 = pct(next.massKg);\n      if (cond(v0) !== cond(v1)) {\n        const tc = p.t + ((thresholdPct - v0) / (v1 - v0)) * (next.t - p.t);\n        if (open) close(tc); else open = { start: tc, end: null };\n      }\n    }\n    if (open) out.push(open);\n    return out;\n  }\n\n  /**\n   * @param {{id: string, alarmLowPct: number, alarmHighPct: number}} silo\n   * @param {SimulationResult} sim\n   * @returns {Alert[]}\n   */\n  function evaluateAlerts(silo, sim) {\n    const totalV = sim.geometry.totalVolumeM3;\n    /** @type {Alert[]} */ const alerts = [];\n    /**\n     * @param {string} rule @param {string} severity @param {number} tStart @param {number | null} tEnd\n     * @param {Record<string, unknown>} data\n     */\n    const add = (rule, severity, tStart, tEnd, data) => alerts.push({\n      id: `${rule}:${silo.id}:${Math.round(tStart)}`,\n      rule, severity, siloId: silo.id, tStart, tEnd, active: tEnd == null, data,\n    });\n\n    for (const iv of thresholdIntervals(sim.points, totalV, silo.alarmLowPct, true)) {\n      add(RULES.LOW_LEVEL, SEVERITY.WARNING, iv.start, iv.end, { thresholdPct: silo.alarmLowPct });\n    }\n    for (const iv of thresholdIntervals(sim.points, totalV, silo.alarmHighPct, false)) {\n      add(RULES.HIGH_LEVEL, SEVERITY.WARNING, iv.start, iv.end, { thresholdPct: silo.alarmHighPct });\n    }\n    const st = sim.state;\n    for (const iv of sim.emptyRunning) {\n      const stillActive = iv.end >= st.t && st.valveRunning && st.activePeriodId === iv.periodId && st.massKg === 0;\n      add(RULES.EMPTY_RUNNING, SEVERITY.CRITICAL, iv.start, stillActive ? null : iv.end, { periodId: iv.periodId });\n    }\n    for (const f of sim.flags) {\n      if (f.code === 'OVER_CAPACITY') {\n        add(RULES.OVERFLOW_RISK, SEVERITY.CRITICAL, f.ts, f.ts, { ...f.data, receptionId: f.refId });\n      } else if (f.code === 'MATERIAL_MISMATCH' || f.code === 'NO_MATERIAL_ASSIGNED') {\n        add(RULES.MATERIAL_MISMATCH, SEVERITY.CRITICAL, f.ts, f.ts, { ...f.data, cause: f.code, receptionId: f.refId });\n      }\n    }\n    return alerts.sort((a, b) => a.tStart - b.tStart);\n  }\n\n  /**\n   * Semáforo del silo: gris sin material; rojo con alerta crítica activa o poco tiempo restante;\n   * amarillo con advertencia activa o tiempo restante moderado; verde en otro caso.\n   * @param {SiloState} state\n   * @param {Alert[]} alerts\n   * @param {SemaphoreConfig} [cfg]\n   */\n  function semaphore(state, alerts, cfg = DEFAULT_SEMAPHORE) {\n    if (state.materialId == null) return LIGHTS.GREY;\n    const active = alerts.filter((a) => a.active);\n    const h = state.hoursRemaining;\n    if (active.some((a) => a.severity === SEVERITY.CRITICAL) || (h != null && h <= cfg.redHours)) return LIGHTS.RED;\n    if (active.some((a) => a.severity === SEVERITY.WARNING) || (h != null && h <= cfg.yellowHours)) return LIGHTS.YELLOW;\n    return LIGHTS.GREEN;\n  }\n\n  return Object.freeze({ SEVERITY, RULES, LIGHTS, DEFAULT_SEMAPHORE, thresholdIntervals, evaluateAlerts, semaphore });\n});\n\n/**\n * hmiSilos · domain/model\n * Colecciones, enumeraciones, valores por defecto e identificadores de los registros.\n * Los tipos de cada registro están en domain/types.d.ts.\n */\n\n(function (root, factory) {\n  const mod = factory();\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).model = mod;\n})(globalThis, function () {\n  'use strict';\n\n  /** @type {readonly CollectionName[]} */\n  const COLLECTIONS = Object.freeze([\n    'plants', 'materials', 'materialProps', 'silos', 'valves', 'valveConfigs',\n    'assignments', 'receptions', 'adjustments', 'valvePeriods', 'totalizerReadings',\n    'calibrations', 'alertStates', 'operators', 'auditLog', 'settings',\n  ]);\n\n  const ADJUSTMENT_TYPES = Object.freeze(['INITIAL', 'TAPE', 'PROBE', 'EMPTY', 'PRODUCTION_RECON', 'OTHER']);\n  const MEASUREMENT_INPUTS = Object.freeze(['KG', 'LEVEL_M', 'ULLAGE_M']);\n  const PERIOD_SOURCES = Object.freeze(['BUTTON', 'MANUAL', 'IMPORT', 'PLC']);\n  const PROPS_SOURCES = Object.freeze(['PROVISIONAL', 'DATASHEET', 'LAB']);\n  const VALVE_CONFIG_SOURCES = Object.freeze(['ESTIMATED', 'MANUAL', 'CALIBRATION']);\n  const OPERATOR_ROLES = Object.freeze(['OPERATOR', 'SUPERVISOR', 'ADMIN']);\n\n  /**\n   * Paleta de materiales: tonos apagados que no compiten con los colores de alarma.\n   * El usuario puede elegir otro por material.\n   */\n  const MATERIAL_PALETTE = Object.freeze(['#6F8FBF', '#8C9BAA', '#9A86B8', '#5E9AA6', '#A68A6D', '#7D8FA8', '#8FA38A', '#B08AA5']);\n\n  /** Medidas provisionales de los silos mientras no haya planos (editables en la app). */\n  const PROVISIONAL_SILO = Object.freeze({\n    radiusM: 1.5,\n    heightM: 6.0,\n    /** ángulo de la tolva desde la horizontal (pellets de PP fluyen bien con ≥ 60°) */\n    hopperAngleDeg: 60,\n    /** salida de Ø 300 mm */\n    dischargeRadiusM: 0.15,\n  });\n\n  /** Rotativa: valores estimados hasta tener la ficha del fabricante. */\n  const PROVISIONAL_VALVE = Object.freeze({ mode: 'DIRECT', vRevM3: 0.0005, eta: 0.85 });\n\n  const DEFAULT_SETTINGS = Object.freeze({\n    language: 'es',\n    /** formato numérico de la UI: en = 1,234.56 · es = 1.234,56 */\n    numberFormat: 'en',\n    alarmLowPct: 15,\n    alarmHighPct: 90,\n    semaphoreRedHours: 8,\n    semaphoreYellowHours: 24,\n    /** días de anticipación para sugerir la próxima recepción */\n    leadTimeDays: 2,\n    /** días sin medición física a partir de los cuales la estimación se considera envejecida */\n    staleEstimateDays: 14,\n  });\n\n  let counter = 0;\n  /**\n   * Identificador único con prefijo legible. Usa crypto.randomUUID cuando existe.\n   * @param {string} prefix\n   */\n  function newId(prefix) {\n    const c = /** @type {{randomUUID?: () => string} | undefined} */ (globalThis.crypto);\n    if (c && typeof c.randomUUID === 'function') return `${prefix}-${c.randomUUID()}`;\n    counter = (counter + 1) % 1_000_000;\n    return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}-${Math.random().toString(36).slice(2, 10)}`;\n  }\n\n  /** @returns {Dataset} */\n  function emptyDataset() {\n    /** @type {any} */ const ds = {};\n    for (const c of COLLECTIONS) ds[c] = [];\n    return ds;\n  }\n\n  /**\n   * Lee un ajuste con su valor por defecto.\n   * @param {Dataset} ds @param {keyof typeof DEFAULT_SETTINGS | string} key\n   */\n  function setting(ds, key) {\n    const rec = ds.settings.find((s) => s.id === key);\n    if (rec) return rec.value;\n    return /** @type {Record<string, unknown>} */ (DEFAULT_SETTINGS)[key];\n  }\n\n  return Object.freeze({\n    COLLECTIONS, ADJUSTMENT_TYPES, MEASUREMENT_INPUTS, PERIOD_SOURCES, PROPS_SOURCES,\n    VALVE_CONFIG_SOURCES, OPERATOR_ROLES, MATERIAL_PALETTE, PROVISIONAL_SILO, PROVISIONAL_VALVE,\n    DEFAULT_SETTINGS, newId, emptyDataset, setting,\n  });\n});\n\n/**\n * hmiSilos · domain/time\n * Hora local de la planta a partir de instantes UTC, con la zona IANA configurada\n * (nunca la del navegador por accidente). Usa Intl, disponible en navegadores y en Node.\n */\n\n(function (root, factory) {\n  const mod = factory();\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).time = mod;\n})(globalThis, function () {\n  'use strict';\n\n  /** @type {Map<string, Intl.DateTimeFormat>} */\n  const formatters = new Map();\n\n  /** @param {string} timeZone */\n  function formatter(timeZone) {\n    let f = formatters.get(timeZone);\n    if (!f) {\n      f = new Intl.DateTimeFormat('en-US', {\n        timeZone, hourCycle: 'h23',\n        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',\n      });\n      formatters.set(timeZone, f);\n    }\n    return f;\n  }\n\n  /**\n   * Componentes de fecha y hora en la zona de la planta.\n   * @param {number} ts ms UTC\n   * @param {string} timeZone IANA, p. ej. \"America/Bogota\"\n   */\n  function zonedParts(ts, timeZone) {\n    /** @type {Record<string, number>} */ const out = {};\n    for (const p of formatter(timeZone).formatToParts(new Date(ts))) {\n      if (p.type !== 'literal') out[p.type] = Number(p.value);\n    }\n    return { year: out.year, month: out.month, day: out.day, hour: out.hour, minute: out.minute, second: out.second };\n  }\n\n  /**\n   * Desfase de la zona respecto a UTC en el instante dado (minutos, p. ej. −300 para UTC−5).\n   * @param {number} ts @param {string} timeZone\n   */\n  function offsetMinutes(ts, timeZone) {\n    const p = zonedParts(ts, timeZone);\n    const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);\n    return Math.round((asUtc - Math.floor(ts / 1000) * 1000) / 60_000);\n  }\n\n  /**\n   * Instante UTC de una fecha y hora locales de la planta (formularios).\n   * Resuelve el desfase en dos pasos para cruzar correctamente cambios de horario.\n   * @param {{year: number, month: number, day: number, hour?: number, minute?: number}} local\n   * @param {string} timeZone\n   */\n  function zonedToUtc(local, timeZone) {\n    const guess = Date.UTC(local.year, local.month - 1, local.day, local.hour || 0, local.minute || 0);\n    const first = guess - offsetMinutes(guess, timeZone) * 60_000;\n    return guess - offsetMinutes(first, timeZone) * 60_000;\n  }\n\n  /** Inicio del día local (00:00 en la planta) que contiene ts. @param {number} ts @param {string} timeZone */\n  function startOfLocalDay(ts, timeZone) {\n    const p = zonedParts(ts, timeZone);\n    return zonedToUtc({ year: p.year, month: p.month, day: p.day }, timeZone);\n  }\n\n  /** Zona horaria del equipo, para el primer arranque. */\n  function deviceTimeZone() {\n    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }\n  }\n\n  /** @param {string} timeZone */\n  function isValidTimeZone(timeZone) {\n    try { formatter(timeZone); return true; } catch { return false; }\n  }\n\n  return Object.freeze({ zonedParts, offsetMinutes, zonedToUtc, startOfLocalDay, deviceTimeZone, isValidTimeZone });\n});\n\n/**\n * hmiSilos · domain/projection\n * Traduce los registros persistidos (Dataset) a la entrada pura del motor de balance y\n * reúne el estado calculado de cada silo. Es el puente entre datos y núcleo de cálculo.\n */\n\n(function (root, factory) {\n  const req = typeof require === 'function';\n  const mod = factory(\n    req ? require('../core/balance.js') : root.HS.balance,\n    req ? require('../core/alerts.js') : root.HS.alerts,\n    req ? require('./model.js') : root.HS.model,\n  );\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).projection = mod;\n})(globalThis, /**\n   * @param {typeof import('../core/balance.js')} balance\n   * @param {typeof import('../core/alerts.js')} alerts\n   * @param {typeof import('./model.js')} model\n   */\n  function (balance, alerts, model) {\n  'use strict';\n\n  /**\n   * Versiones de propiedades agrupadas por material.\n   * @param {Dataset} ds\n   * @returns {Record<string, MaterialPropsVersion[]>}\n   */\n  function materialPropsById(ds) {\n    /** @type {Record<string, MaterialPropsVersion[]>} */ const out = {};\n    for (const p of ds.materialProps) (out[p.materialId] = out[p.materialId] || []).push(p);\n    return out;\n  }\n\n  /** @param {Dataset} ds @param {string} siloId */\n  function valveIdsOf(ds, siloId) {\n    return ds.valves.filter((v) => v.siloId === siloId).map((v) => v.id);\n  }\n\n  /**\n   * Entrada del motor de balance para un silo hasta el instante `until`.\n   * @param {Dataset} ds\n   * @param {string} siloId\n   * @param {number} until\n   * @returns {SimulationInput}\n   */\n  function siloSimulationInput(ds, siloId, until) {\n    const silo = ds.silos.find((s) => s.id === siloId);\n    if (!silo) throw new Error(`Silo not found: ${siloId}`);\n    const valves = new Set(valveIdsOf(ds, siloId));\n    return {\n      geometry: silo.geometry,\n      until,\n      materialProps: materialPropsById(ds),\n      assignments: ds.assignments.filter((a) => a.siloId === siloId),\n      receptions: ds.receptions.filter((r) => r.siloId === siloId),\n      adjustments: ds.adjustments.filter((a) => a.siloId === siloId),\n      valveConfigs: ds.valveConfigs.filter((c) => valves.has(c.valveId)),\n      periods: ds.valvePeriods.filter((p) => valves.has(p.valveId)),\n    };\n  }\n\n  /**\n   * Estado calculado de un silo: simulación, alertas (con su reconocimiento) y semáforo.\n   * @param {Dataset} ds @param {string} siloId @param {number} until\n   */\n  function siloView(ds, siloId, until) {\n    const silo = /** @type {SiloRecord} */ (ds.silos.find((s) => s.id === siloId));\n    const sim = balance.simulateSilo(siloSimulationInput(ds, siloId, until));\n    const acked = new Set(ds.alertStates.filter((a) => a.siloId === siloId).map((a) => a.alertId));\n    const list = alerts.evaluateAlerts(silo, sim).map((a) => ({ ...a, acknowledged: acked.has(a.id) }));\n    const light = alerts.semaphore(sim.state, list, {\n      redHours: Number(model.setting(ds, 'semaphoreRedHours')),\n      yellowHours: Number(model.setting(ds, 'semaphoreYellowHours')),\n    });\n    return { silo, sim, alerts: list, semaphore: light };\n  }\n\n  /** Vista de todos los silos activos, en su orden. @param {Dataset} ds @param {number} until */\n  function plantView(ds, until) {\n    return ds.silos\n      .filter((s) => s.active)\n      .sort((a, b) => a.order - b.order)\n      .map((s) => siloView(ds, s.id, until));\n  }\n\n  return Object.freeze({ materialPropsById, valveIdsOf, siloSimulationInput, siloView, plantView });\n});\n\n\n// Read-only query boundary. The model can select a query, never execute code or write records.\n(function (root, factory) {\n  const req = typeof require === 'function';\n  const mod = factory(req ? require('../domain/projection.js') : root.HS.projection,\n    req ? require('../domain/time.js') : root.HS.time,\n    req ? require('../domain/model.js') : root.HS.model);\n  if (typeof module === 'object' && module.exports) module.exports = mod;\n  (root.HS = root.HS || {}).assistantQuery = mod;\n})(globalThis, /**\n * @param {typeof import('../domain/projection.js')} projection\n * @param {typeof import('../domain/time.js')} time\n * @param {typeof import('../domain/model.js')} model\n */ function (projection, time, model) {\n  'use strict';\n  const operations = ['status', 'inventory', 'alerts', 'received', 'consumed', 'forecast', 'available', 'running', 'clarify', 'unsupported'];\n  const periods = ['today', 'yesterday', 'last7days', 'last30days'];\n  const schema = {\n    type: 'object', additionalProperties: false,\n    properties: {\n      operation: { type: 'string', enum: operations },\n      siloId: { type: ['string', 'null'] }, materialId: { type: ['string', 'null'] },\n      period: { type: ['string', 'null'], enum: [...periods, null] },\n    }, required: ['operation', 'siloId', 'materialId', 'period'],\n  };\n  /** @param {unknown} raw @param {Dataset} ds @returns {AssistantIntent} */\n  function validate(raw, ds) {\n    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('INVALID_INTENT');\n    const v = /** @type {Record<string, unknown>} */ (raw);\n    const keys = ['operation', 'siloId', 'materialId', 'period'];\n    if (Object.keys(v).length !== keys.length || Object.keys(v).some(k => !keys.includes(k))) throw new Error('INVALID_INTENT');\n    if (typeof v.operation !== 'string' || !operations.includes(v.operation) || (v.period !== null && (typeof v.period !== 'string' || !periods.includes(v.period)))) throw new Error('INVALID_INTENT');\n    if (v.siloId !== null && (typeof v.siloId !== 'string' || !ds.silos.some(s => s.active && s.id === v.siloId))) throw new Error('UNKNOWN_SILO');\n    if (v.materialId !== null && (typeof v.materialId !== 'string' || !ds.materials.some(m => m.active && m.id === v.materialId))) throw new Error('UNKNOWN_MATERIAL');\n    if (['received', 'consumed'].includes(String(v.operation)) ? v.period === null : v.period !== null) throw new Error('INVALID_PERIOD');\n    return /** @type {AssistantIntent} */ (/** @type {unknown} */ (v));\n  }\n  /** @param {string} s */\n  const normalize = s => s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\n  /** @param {string} q @param {string} name */\n  function mentions(q, name) {\n    const escaped = normalize(name).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n    return !!escaped && new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`).test(q);\n  }\n  /** Limited offline parser: rejects questions it cannot interpret instead of guessing. @param {string} text @param {Dataset} ds @returns {AssistantIntent} */\n  function basicIntent(text, ds) {\n    const words = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];\n    const englishWords = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];\n    const q = normalize(text).replace(/\\b(silo|tanque|tank)\\s+(?:numero\\s+|number\\s+)?(uno|dos|tres|cuatro|cinco|seis|siete|ocho|one|two|three|four|five|six|seven|eight)\\b/g, (_match, prefix, word) => `${prefix} ${(words.includes(word) ? words : englishWords).indexOf(word) + 1}`).replace(/\\b(silo|tanque|tank)\\s+(numero|number)\\s+(\\d+)\\b/g, '$1 $3');\n    /** @type {AssistantIntent} */ const out = { operation: 'unsupported', siloId: null, materialId: null, period: null };\n    if (!q.trim() || text.length > 2000) return out;\n    if (/\\b(arranca|arrancar|enciende|apaga|deten|detener|registra|borra|elimina|modifica|cambia|start|stop|delete|update|set)\\b/.test(q)) return out;\n    // Multiple silos, explicit dates and unsupported relative ranges need clarification.\n    if (/\\b(?:silo|tanque|tank)\\s*#?\\s*\\d+\\s*(?:y|and|,|al|to|-)\\s*(?:silo\\s*)?\\d+/.test(q) || /\\d{1,4}[-/]\\d{1,2}/.test(q) || /\\b(anteayer|last week|semana pasada|mes pasado|manana|tomorrow|turno|shift)\\b/.test(q)) return { ...out, operation: 'clarify' };\n    const matches = [...q.matchAll(/\\b(?:silo|tanque|tank)\\s*#?\\s*(\\d+)\\b/g)];\n    if (matches.length > 1) return { ...out, operation: 'clarify' };\n    if (!matches.length && /\\b(numero|number)\\s*\\d+/.test(q)) return { ...out, operation: 'clarify' };\n    if (matches.length) {\n      const id = ds.silos.find(s => s.active && normalize(s.name).match(new RegExp(`\\\\b${Number(matches[0][1])}\\\\b`)));\n      if (!id) return { ...out, operation: 'clarify' };\n      out.siloId = id.id;\n    }\n    const named = ds.silos.filter(s => s.active && (mentions(q, s.name) || mentions(q, s.id)));\n    if (named.length > 1 || (named.length === 1 && out.siloId && named[0].id !== out.siloId)) return { ...out, operation: 'clarify' };\n    if (named.length === 1) out.siloId = named[0].id;\n    const materials = ds.materials.filter(m => m.active && mentions(q, m.name));\n    if (materials.length > 1) return { ...out, operation: 'clarify' };\n    if (materials.length) out.materialId = materials[0].id;\n    if (/\\b(alertas?|alarmas?|alerts?|alarms?)\\b/.test(q)) out.operation = 'alerts';\n    else if (/vaci|empty|autonomia|durara|restante|remaining|run out/.test(q)) out.operation = 'forecast';\n    else if (/recibi|recibio|recibido|recepc|received|deliver/.test(q)) out.operation = 'received';\n    else if (/consum|consumption|utiliz|material used|\\bused\\b|gast/.test(q)) out.operation = 'consumed';\n    // Antes que \"capacidad\" a secas: espacio libre para descargar un camión\n    else if (/disponible|\\bcaben?\\b|\\bespacio\\b|\\blibre\\b|\\bavailable\\b|\\broom\\b|\\bspace\\b|\\bfits?\\b|can (?:it )?receive|puede recibir/.test(q)) out.operation = 'available';\n    else if (/\\b(rotativas?|valvulas?|valves?)\\b|en marcha|funcionando|\\brunning\\b/.test(q)) out.operation = 'running';\n    else if (/inventario|inventory|total|cuanto|cuanta|queda|nivel|level|estado|status|capacity|capacidad|how much/.test(q)) out.operation = out.siloId ? 'status' : 'inventory';\n    if (['received', 'consumed'].includes(out.operation)) {\n      if (/\\b(hoy|today)\\b/.test(q)) out.period = 'today';\n      else if (/\\b(ayer|yesterday)\\b/.test(q)) out.period = 'yesterday';\n      else if (/\\b(7|siete|seven)\\s*(dias|days)\\b/.test(q)) out.period = 'last7days';\n      else if (/\\b(30|treinta|thirty)\\s*(dias|days)\\b/.test(q)) out.period = 'last30days';\n      else return { ...out, operation: 'clarify', period: null };\n      const range = q.match(/\\b(\\d+)\\s*(dias|days)\\b/);\n      if (range && !['7', '30'].includes(range[1])) return { ...out, operation: 'clarify', period: null };\n    } else if (/\\b(hoy|ayer|yesterday|days|dias)\\b/.test(q)) return { ...out, operation: 'clarify' };\n    return out;\n  }\n  /** The model selects an operation only. Entity/time filters are resolved from the question, never guessed by the model.\n   * @param {string} text @param {Dataset} ds @param {string} operation @returns {AssistantIntent} */\n  function classifiedIntent(text, ds, operation) {\n    /** @type {Record<string, string>} */ const aliases = { stock: 'inventory', capacity: 'status', level: 'status', flow: 'status', alarms: 'alerts', deliveries: 'received', delivery: 'received', consumption: 'consumed', autonomy: 'forecast', space: 'available', room: 'available', free: 'available', valves: 'running', valve: 'running' };\n    if (Object.hasOwn(aliases, operation)) operation = aliases[operation];\n    /** @type {Record<string, string>} */ const keywords = { status: 'estado', inventory: 'inventario', alerts: 'alertas', received: 'recepciones', consumed: 'consumo', forecast: 'autonomia', available: 'disponible', running: 'rotativas' };\n    if (!Object.hasOwn(keywords, operation)) return { operation: operation === 'unsupported' ? 'unsupported' : 'clarify', siloId: null, materialId: null, period: null };\n    const literal = basicIntent(text, ds);\n    if (!['unsupported', 'clarify'].includes(literal.operation)) return literal;\n    const scoped = basicIntent(`${keywords[operation]} ${text}`, ds);\n    if (scoped.operation === 'clarify' || scoped.operation === 'unsupported') return scoped;\n    scoped.operation = /** @type {AssistantOperation} */ (operation === 'inventory' && scoped.siloId ? 'status' : operation);\n    try { return validate(scoped, ds); }\n    catch { return { ...scoped, operation: 'clarify', period: null }; }\n  }\n  /** @param {AssistantPeriod} period @param {number} cutoff @param {string} tz */\n  function rangeFor(period, cutoff, tz) {\n    const day = time.startOfLocalDay(cutoff, tz);\n    const p = time.zonedParts(day, tz);\n    const previous = (/** @type {number} */ n) => time.zonedToUtc({ year: p.year, month: p.month, day: p.day - n }, tz);\n    if (period === 'yesterday') return { from: previous(1), to: day };\n    if (period === 'last7days') return { from: previous(6), to: cutoff };\n    if (period === 'last30days') return { from: previous(29), to: cutoff };\n    return { from: day, to: cutoff };\n  }\n  /** Textos legibles (ES/EN) de reglas de alerta, severidades y marcas del motor. */\n  /** @type {Record<string, [string, string]>} */\n  const RULE_TEXT = {\n    LOW_LEVEL: ['nivel bajo (< {p} %)', 'low level (< {p} %)'],\n    HIGH_LEVEL: ['nivel alto (> {p} %)', 'high level (> {p} %)'],\n    EMPTY_RUNNING: ['silo vacío con la rotativa en marcha', 'empty silo with the rotary valve running'],\n    OVERFLOW_RISK: ['riesgo de rebose: recepción por encima de la capacidad', 'overflow risk: receipt above capacity'],\n    MATERIAL_MISMATCH: ['material incompatible con el silo', 'material does not match the silo'],\n  };\n  /** @type {Record<string, [string, string]>} */\n  const SEVERITY_TEXT = { CRITICAL: ['crítica', 'critical'], WARNING: ['advertencia', 'warning'], INFO: ['información', 'info'] };\n  /** @type {Record<string, [string, string]>} */\n  const FLAG_TEXT = {\n    OVER_CAPACITY: ['una recepción superó la capacidad y se recortó', 'a receipt exceeded capacity and was clipped'],\n    MATERIAL_MISMATCH: ['una recepción no coincide con el material del silo', 'a receipt does not match the silo material'],\n    NO_MATERIAL_ASSIGNED: ['recepción en un silo sin material asignado', 'receipt into a silo without material'],\n    MATERIAL_CHANGE_NOT_EMPTY: ['cambio de material con el silo sin vaciar', 'material change while the silo was not empty'],\n    ADJUSTMENT_ABOVE_CAPACITY: ['una medición superó la capacidad del silo', 'a measurement exceeded silo capacity'],\n    MASS_WITHOUT_MATERIAL: ['masa registrada sin material asignado', 'mass recorded without material'],\n    MISSING_FLOW: ['periodo de rotativa sin flujo ni RPM', 'valve period without flow or RPM'],\n    PERIOD_OVERLAP: ['periodos de rotativa superpuestos', 'overlapping valve periods'],\n    FLOW_MODE_FALLBACK: ['el flujo usó el dato alterno al modo configurado', 'flow used the alternate data source'],\n  };\n\n  /**\n   * Ejecuta una intención validada sobre una copia de los datos y compone la respuesta factual.\n   * Los números siguen el formato de la HMI (en: 1,234.5 · es: 1.234,5) y las fechas la hora de la planta.\n   * @param {Dataset} ds @param {unknown} raw\n   * @param {{cutoff: number, timeZone: string, language?: string, numberFormat?: string}} opts\n   * @returns {AssistantResult}\n   */\n  function execute(ds, raw, { cutoff, timeZone, language = 'es', numberFormat = 'en' }) {\n    const intent = validate(raw, ds);\n    if (!Number.isFinite(cutoff) || !time.isValidTimeZone(timeZone)) throw new Error('INVALID_CONTEXT');\n    const en = language === 'en';\n    /** @param {string} es @param {string} enText */\n    const tr = (es, enText) => (en ? enText : es);\n    const numberLocale = numberFormat === 'es' ? 'de-DE' : 'en-US';\n    const n = (/** @type {number | null | undefined} */ v, d = 1) => v == null || !Number.isFinite(v) ? tr('sin dato', 'unavailable') : new Intl.NumberFormat(numberLocale, { maximumFractionDigits: d }).format(v);\n    const pad = (/** @type {number} */ x) => String(x).padStart(2, '0');\n    const date = (/** @type {number} */ v) => { const p = time.zonedParts(v, timeZone); return `${pad(p.day)}/${pad(p.month)}/${p.year} ${pad(p.hour)}:${pad(p.minute)}`; };\n    const hours = (/** @type {number} */ h) => (h < 48 ? `${n(h, 1)} h` : `${n(h / 24, 1)} ${tr('días', 'days')}`);\n    /** @param {Record<string, [string, string]>} table @param {string} code */\n    const label = (table, code) => (table[code] ? table[code][en ? 1 : 0] : code);\n    /** @type {AssistantResult} */ const result = { intent, cutoff, rows: [], evidence: [], warnings: [], flags: [], demo: model.setting(ds, 'meta.demo') === true, period: null, text: '' };\n    if (intent.operation === 'clarify' || intent.operation === 'unsupported') {\n      const readOnly = intent.operation === 'unsupported'\n        ? tr('El asistente solo consulta: no arranca ni para rotativas ni registra movimientos; use los botones de la HMI.\\n', 'The assistant only answers questions: it does not start or stop valves or record movements; use the HMI buttons.\\n')\n        : '';\n      result.text = readOnly + tr(\n        'Puedo consultar: inventario («Inventario total», «¿Cuánto Biopaque hay?»), estado de un silo («¿Cuánto queda en el silo 6?»), capacidad disponible («¿Cuánto cabe en el silo 8?»), rotativas en marcha, alertas activas, vaciado estimado («¿Cuándo se vacía el silo 6?») y recepciones o consumo de hoy, ayer, últimos 7 o 30 días («Consumo del silo 8 ayer»). Indica un solo silo o toda la planta.',\n        'I can query: inventory (“Total inventory”, “How much Biopaque is there?”), silo status (“How much remains in silo 6?”), available capacity (“How much fits in silo 8?”), running valves, active alerts, estimated emptying (“When will silo 6 be empty?”) and receipts or consumption for today, yesterday, last 7 or 30 days (“Silo 8 consumption yesterday”). Name one silo or the whole plant.');\n      return result;\n    }\n    const plantWide = !intent.siloId;\n    const selected = ds.silos.filter(s => s.active && (!intent.siloId || s.id === intent.siloId)).sort((a, b) => a.order - b.order);\n    const views = selected.map(s => projection.siloView(ds, s.id, cutoff)).filter(v => !intent.materialId || v.sim.state.materialId === intent.materialId || ['received', 'consumed'].includes(intent.operation));\n    /** @type {string[]} */ const lines = [];\n    /** @type {Map<string, number>} */ const byMaterial = new Map();\n    let unconfigured = 0;\n    for (const v of views) {\n      const state = v.sim.state;\n      const material = ds.materials.find(m => m.id === state.materialId);\n      const name = `${v.silo.name}${material ? ` · ${material.name}` : ''}`;\n      for (const f of v.sim.flags) {\n        result.warnings.push(`${v.silo.name}: ${label(FLAG_TEXT, f.code)}`);\n        /** @type {any[]} */ (result.flags).push({ siloId: v.silo.id, code: f.code, ts: f.ts, refId: f.refId });\n      }\n      const ownValves = new Set(ds.valves.filter(x => x.siloId === v.silo.id).map(x => x.id));\n      result.evidence.push(...ds.adjustments.filter(a => a.siloId === v.silo.id && !a.voided && a.ts <= cutoff).map(a => a.id),\n        ...ds.receptions.filter(r => r.siloId === v.silo.id && !r.voided && r.ts <= cutoff).map(r => r.id),\n        ...ds.valvePeriods.filter(p => ownValves.has(p.valveId) && !p.voided && p.start <= cutoff).map(p => p.id),\n        ...ds.assignments.filter(a => a.siloId === v.silo.id && !a.voided && a.ts <= cutoff).map(a => a.id),\n        ...ds.valveConfigs.filter(c => ownValves.has(c.valveId) && !c.voided && c.effectiveFrom <= cutoff).map(c => c.id),\n        ...ds.materialProps.filter(p => !p.voided && p.effectiveFrom <= cutoff).map(p => p.id));\n      const valveText = !state.valveRunning ? tr('rotativa detenida', 'rotary valve stopped')\n        : state.massKg === 0 ? tr('rotativa en marcha con el silo vacío', 'rotary valve running on an empty silo')\n          : state.nominalFlowKgH == null ? tr('rotativa en marcha sin flujo registrado', 'rotary valve running without recorded flow')\n            : tr(`rotativa en marcha a ${n(state.nominalFlowKgH, 0)} kg/h`, `rotary valve running at ${n(state.nominalFlowKgH, 0)} kg/h`);\n      if (intent.operation === 'status' || intent.operation === 'inventory') {\n        result.rows.push({ siloId: v.silo.id, ...state });\n        if (material) byMaterial.set(material.name, (byMaterial.get(material.name) || 0) + state.massKg);\n        if (intent.operation === 'status') {\n          const pct = state.capacityKg == null ? '' : ` (${n(state.levelPct)} % ${tr('de', 'of')} ${n(state.capacityKg, 0)} kg)`;\n          const remaining = state.hoursRemaining == null ? '' : `; ${tr('vacío en', 'empty in')} ${hours(state.hoursRemaining)}`;\n          lines.push(`${name}: ${n(state.massKg, 0)} kg${pct}; ${tr('nivel', 'level')} ${n(state.levelM, 2)} m; ${valveText}${remaining}.`);\n        } else {\n          lines.push(`${name}: ${n(state.massKg, 0)} kg${state.capacityKg == null ? '' : ` (${n(state.levelPct)} %)`}.`);\n        }\n      } else if (intent.operation === 'forecast') {\n        result.rows.push({ siloId: v.silo.id, emptyAt: state.emptyAt, hoursRemaining: state.hoursRemaining });\n        lines.push(`${name}: ${state.massKg === 0 ? tr('vacío.', 'empty.') : !state.valveRunning ? tr('rotativa parada; sin fecha de vaciado.', 'rotary valve stopped; no emptying date.') : state.emptyAt == null ? tr('sin caudal suficiente para pronosticar.', 'insufficient flow data for a forecast.') : `${hours(/** @type {number} */ (state.hoursRemaining))}; ${date(state.emptyAt)}.`}`);\n      } else if (intent.operation === 'available') {\n        const freeM3 = state.volumeM3 == null ? null : state.totalVolumeM3 - state.volumeM3;\n        if (state.capacityKg == null) {\n          unconfigured++;\n          if (!plantWide) lines.push(`${name}: ${tr('sin material asignado; el espacio libre es', 'no material assigned; free space is')} ${n(freeM3, 2)} m³ (${tr('los kg dependen del material', 'kg depend on the material')}).`);\n          result.rows.push({ siloId: v.silo.id, availableKg: null, capacityKg: null, freeM3 });\n          continue;\n        }\n        result.rows.push({ siloId: v.silo.id, availableKg: state.availableKg, capacityKg: state.capacityKg, freeM3 });\n        const freePct = state.levelPct == null ? null : 100 - state.levelPct;\n        lines.push(`${name}: ${tr('caben', 'fits')} ${n(state.availableKg, 0)} kg (${n(freePct)} % ${tr('libre de', 'free of')} ${n(state.capacityKg, 0)} kg).`);\n      } else if (intent.operation === 'running') {\n        if (!state.materialId && !state.valveRunning) { unconfigured++; continue; }\n        result.rows.push({ siloId: v.silo.id, valveRunning: state.valveRunning, flowKgH: state.nominalFlowKgH, effectiveFlowKgH: state.effectiveFlowKgH, hoursRemaining: state.hoursRemaining });\n        if (plantWide && !state.valveRunning) continue;\n        const remaining = state.hoursRemaining == null ? '' : `; ${tr('vacío en', 'empty in')} ${hours(state.hoursRemaining)} (${date(/** @type {number} */ (state.emptyAt))})`;\n        lines.push(`${name}: ${valveText}${remaining}.`);\n      } else if (intent.operation === 'alerts') {\n        const active = v.alerts.filter(a => a.active);\n        for (const a of active) {\n          result.rows.push({ ...a });\n          const p = /** @type {{thresholdPct?: number}} */ (a.data).thresholdPct;\n          const text = label(RULE_TEXT, a.rule).replace('{p}', p == null ? '' : n(p, 0));\n          const ack = /** @type {{acknowledged?: boolean}} */ (a).acknowledged ? tr(' · reconocida', ' · acknowledged') : '';\n          lines.push(`${name}: ${label(SEVERITY_TEXT, a.severity)} · ${text} (${tr('desde', 'since')} ${date(a.tStart)})${ack}.`);\n        }\n      } else {\n        const range = rangeFor(intent.period, cutoff, timeZone);\n        result.period = range;\n        const recs = v.sim.receptions.filter(r => r.ts >= range.from && r.ts < range.to && (!intent.materialId || ds.receptions.find(x => x.id === r.id)?.materialId === intent.materialId));\n        const assignments = ds.assignments.filter(a => a.siloId === v.silo.id && !a.voided).sort((a, b) => a.ts - b.ts);\n        const segments = v.sim.segments.filter(s => s.t1 > range.from && s.t0 < range.to && (!intent.materialId || assignments.filter(a => a.ts <= s.t0).at(-1)?.materialId === intent.materialId));\n        const received = recs.reduce((sum, r) => sum + r.massKg, 0);\n        const consumed = segments.reduce((sum, s) => sum + s.consumedKg * ((Math.min(s.t1, range.to) - Math.max(s.t0, range.from)) / (s.t1 - s.t0)), 0);\n        const value = intent.operation === 'received' ? received : consumed;\n        const historyStart = v.sim.points[0]?.t;\n        if (historyStart == null || historyStart > range.from) result.warnings.push(`${v.silo.name}: ${tr('historial parcial; no se confirma el total del período', 'partial history; the period total is not confirmed')}`);\n        result.rows.push({ siloId: v.silo.id, kg: value, count: recs.length, recordedOnly: true });\n        if (plantWide && value === 0 && historyStart == null) continue;\n        const detail = intent.operation === 'received'\n          ? `${tr('recibidos en registros', 'received in records')} (${recs.length} ${tr(recs.length === 1 ? 'recepción' : 'recepciones', recs.length === 1 ? 'receipt' : 'receipts')})`\n          : tr('consumidos por balance', 'consumed by balance');\n        lines.push(`${v.silo.name}: ${n(value, 0)} kg ${detail}.`);\n      }\n    }\n    if (intent.operation === 'inventory') {\n      lines.push(`${tr('Inventario total estimado', 'Total estimated inventory')}: ${n(result.rows.reduce((s, r) => s + r.massKg, 0), 0)} kg.`);\n      if (!intent.materialId && byMaterial.size > 1) lines.push(`${tr('Por material', 'By material')}: ${[...byMaterial].map(([m, kg]) => `${m} ${n(kg, 0)} kg`).join(' · ')}.`);\n    }\n    if (plantWide && (intent.operation === 'received' || intent.operation === 'consumed') && result.rows.length > 1) {\n      lines.push(`${tr('Total planta', 'Plant total')}: ${n(result.rows.reduce((s, r) => s + r.kg, 0), 0)} kg.`);\n    }\n    if (intent.operation === 'available' && plantWide) {\n      const total = result.rows.reduce((s, r) => s + (r.availableKg || 0), 0);\n      lines.push(`${tr('Capacidad disponible total (silos con material)', 'Total available capacity (silos with material)')}: ${n(total, 0)} kg.`);\n      if (unconfigured) lines.push(tr(`${unconfigured} silos sin material asignado no se incluyen.`, `${unconfigured} silos without material are not included.`));\n    }\n    if (intent.operation === 'running' && plantWide) {\n      const running = result.rows.filter(r => r.valveRunning).length;\n      const configured = result.rows.length;\n      lines.push(running ? tr(`Rotativas en marcha: ${running} de ${configured} silos con material.`, `Valves running: ${running} of ${configured} silos with material.`) : tr('Ninguna rotativa en marcha.', 'No rotary valve is running.'));\n    }\n    if (intent.operation === 'forecast' || intent.operation === 'running') lines.push(tr('Proyección al caudal actual, sin recepciones futuras no registradas.', 'Projection at current flow, without future unrecorded receipts.'));\n    if (intent.operation === 'available') lines.push(tr('Estimado por balance de masa: confirme con una medición antes de descargar un camión lleno.', 'Estimated by mass balance: confirm with a measurement before unloading a full truck.'));\n    if (!lines.length) lines.push(intent.operation === 'alerts' ? tr('Sin alertas activas.', 'No active alerts.') : tr('Sin registros coincidentes.', 'No matching records.'));\n    if (result.period) lines.push(`${tr('Período [desde, hasta)', 'Period [from, to)')}: ${date(result.period.from)} → ${date(result.period.to)}.`);\n    result.evidence = [...new Set(result.evidence)];\n    result.warnings = [...new Set(result.warnings)];\n    lines.push(`${tr('Corte', 'Cutoff')}: ${date(cutoff)} (${timeZone}). ${result.demo ? tr('Datos de demostración.', 'Demonstration data.') : tr('Registros de este navegador.', 'Records from this browser.')}`);\n    if (['status', 'inventory'].includes(intent.operation)) lines.push(tr('Estimado por balance de masa, sin medición de sensor de nivel.', 'Estimated by mass balance, not a level sensor reading.'));\n    if (result.warnings.length) lines.push(`${tr('Advertencias', 'Warnings')}: ${result.warnings.join('; ')}.`);\n    result.text = lines.join('\\n');\n    return result;\n  }\n  return Object.freeze({ schema, validate, basicIntent, classifiedIntent, rangeFor, execute });\n});\n\n\n// Bundled separately into a Blob Worker; no model or audio is sent to an inference API.\n(function (root) {\n  'use strict';\n  const ctx = /** @type {any} */ (root);\n  const query = ctx.HS.assistantQuery;\n  /** @type {any} */ let engine = null;\n  /** @type {any} */ let transcriber = null;\n  /** @type {any} */ let ort = null;\n  /** @type {any} */ let phonemizer = null;\n  /** @type {any} */ let transformers = null;\n  /** @type {Map<string, {config: any, session: any}>} */ const voices = new Map();\n  const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';\n  /** @param {string} url */\n  const external = url => import(url);\n  /** @param {number} id @param {string} message */\n  const progress = (id, message) => ctx.postMessage({ id, progress: message });\n  async function runtime() {\n    if (!transformers) {\n      transformers = await external('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js');\n      transformers.env.allowLocalModels = false;\n      transformers.env.backends.onnx.wasm.numThreads = 1;\n      transformers.env.backends.onnx.wasm.proxy = false;\n    }\n    return transformers;\n  }\n  /** @param {number} id */\n  async function loadAI(id) {\n    if (engine) return;\n    const tf = await runtime();\n    engine = await tf.pipeline('text-generation', MODEL, {\n      device: 'wasm', dtype: 'q4',\n      progress_callback: (/** @type {{status: string, progress?: number}} */ p) => progress(id, `Qwen: ${p.status}${p.progress == null ? '' : ` ${Math.round(p.progress)}%`}`),\n    });\n  }\n  /** @param {any} job */\n  async function ask(job) {\n    if (typeof job.text !== 'string' || !job.text.trim() || job.text.length > 2000) throw new Error('QUESTION_LIMIT');\n    const literal = query.basicIntent(job.text, job.dataset);\n    let intent = literal;\n    let interpreter = 'basic';\n    if (job.ai && ['unsupported', 'clarify'].includes(literal.operation)) {\n      if (!engine) throw new Error('AI_NOT_READY');\n      const response = await engine([\n          { role: 'system', content: 'Classify silo monitoring questions. Output only one label: status (current level, mass, flow, capacity of one silo), inventory (stock), alerts (alarms), received (deliveries), consumed (used material), forecast (autonomy, time until empty), available (free space, how much still fits, can a truck be unloaded), running (which rotary valves are running), unsupported (write command, unrelated). Do not explain.' },\n          { role: 'user', content: '¿En cuántas horas se agotará el material?' }, { role: 'assistant', content: 'forecast' },\n          { role: 'user', content: 'What is the current plant stock?' }, { role: 'assistant', content: 'inventory' },\n          { role: 'user', content: '¿Qué cantidad utilizamos hoy?' }, { role: 'assistant', content: 'consumed' },\n          { role: 'user', content: '¿Hay sitio para descargar un camión de 15 toneladas?' }, { role: 'assistant', content: 'available' },\n          { role: 'user', content: '¿Qué silos están alimentando la línea ahora?' }, { role: 'assistant', content: 'running' },\n          { role: 'user', content: job.text },\n        ], { do_sample: false, max_new_tokens: 8 });\n      const generated = response[0].generated_text;\n      const text = typeof generated === 'string' ? generated : generated.at(-1).content;\n      intent = query.classifiedIntent(job.text, job.dataset, text.trim().toLowerCase().replace(/^[\"']|[\"']$/g, '').replace(/[.!]$/, ''));\n      interpreter = 'ai';\n    }\n    return { ...query.execute(job.dataset, intent, { cutoff: job.cutoff, timeZone: job.timeZone, language: job.language, numberFormat: job.numberFormat }), interpreter };\n  }\n  /** @param {any} job */\n  async function transcribe(job) {\n    if (!transcriber) {\n      const tf = await runtime();\n      transcriber = await tf.pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny', {\n        device: 'wasm', dtype: 'q8',\n        progress_callback: (/** @type {{status: string, progress?: number}} */ p) => progress(job.id, `Whisper: ${p.status}${p.progress == null ? '' : ` ${Math.round(p.progress)}%`}`),\n      });\n    }\n    const audio = job.audio;\n    if (!(audio instanceof Float32Array) || audio.length > 30 * 16000) throw new Error('AUDIO_LIMIT');\n    const out = await transcriber(audio, { language: job.language === 'en' ? 'english' : 'spanish', task: 'transcribe', chunk_length_s: 30 });\n    return String(out.text).trim();\n  }\n  /** @param {string} url */\n  async function cached(url) {\n    const cache = await ctx.caches.open('hmisilos-voice-v1');\n    const hit = await cache.match(url);\n    if (hit) return hit;\n    const response = await fetch(url);\n    if (!response.ok) throw new Error('VOICE_DOWNLOAD_FAILED');\n    await cache.put(url, response.clone());\n    return response;\n  }\n  /** @param {any} job */\n  async function speak(job) {\n    if (!ort) {\n      ctx.importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js');\n      ort = ctx.ort;\n      ort.env.wasm.numThreads = 1;\n      ort.env.wasm.proxy = false;\n      ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';\n    }\n    if (!phonemizer) phonemizer = await external('https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/dist/piper-DeOu3H9E.js/+esm');\n    // Spanish SHARVARD (CC BY 3.0); English LJ Speech (public domain). See docs/04.\n    const key = job.language === 'en' ? 'en/en_US/ljspeech/medium/en_US-ljspeech-medium' : 'es/es_ES/sharvard/medium/es_ES-sharvard-medium';\n    let voice = voices.get(key);\n    if (!voice) {\n      progress(job.id, 'Piper: downloading voice / descargando voz');\n      const base = `https://huggingface.co/rhasspy/piper-voices/resolve/main/${key}.onnx`;\n      const config = await (await cached(`${base}.json`)).json();\n      const session = await ort.InferenceSession.create(await (await cached(base)).arrayBuffer(), { executionProviders: ['wasm'] });\n      voice = { config, session };\n      voices.set(key, voice);\n    }\n    const config = voice.config;\n    /** @type {number[] | null} */ let ids = null;\n    /** @type {string | null} */ let failure = null;\n    const module = await phonemizer.createPiperPhonemize({\n      print: (/** @type {string} */ line) => { ids = JSON.parse(line).phoneme_ids; },\n      printErr: (/** @type {string} */ line) => { failure = line; },\n      locateFile: (/** @type {string} */ name) => `https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/${name}`,\n    });\n    module.callMain(['-l', config.espeak.voice, '--input', JSON.stringify([{ text: String(job.text).slice(0, 1800) }]), '--espeak_data', '/espeak-ng-data']);\n    if (failure || !ids) throw new Error('PHONEME_FAILED');\n    const tokens = /** @type {number[]} */ (ids);\n    /** @type {Record<string, any>} */ const feeds = {\n      input: new ort.Tensor('int64', BigInt64Array.from(tokens.map(BigInt)), [1, tokens.length]),\n      input_lengths: new ort.Tensor('int64', BigInt64Array.from([BigInt(tokens.length)]), [1]),\n      scales: new ort.Tensor('float32', Float32Array.from([config.inference.noise_scale, config.inference.length_scale, config.inference.noise_w]), [3]),\n    };\n    if (Object.keys(config.speaker_id_map || {}).length) feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]), [1]);\n    const output = await voice.session.run(feeds);\n    const samples = output.output.data;\n    const buffer = new ArrayBuffer(44 + samples.length * 2);\n    const view = new DataView(buffer);\n    const rate = config.audio.sample_rate;\n    // PCM mono WAV.\n    view.setUint32(0, 0x46464952, true); view.setUint32(4, buffer.byteLength - 8, true);\n    view.setUint32(8, 0x45564157, true); view.setUint32(12, 0x20746d66, true);\n    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);\n    view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);\n    view.setUint16(32, 2, true); view.setUint16(34, 16, true);\n    view.setUint32(36, 0x61746164, true); view.setUint32(40, samples.length * 2, true);\n    for (let i = 0; i < samples.length; i++) view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, samples[i])) * 32767, true);\n    return buffer;\n  }\n  // Serialize jobs to bound memory and prevent overlapping model invocations.\n  let queue = Promise.resolve();\n  ctx.onmessage = (/** @type {{data: any}} */ e) => {\n    queue = queue.then(async () => {\n      const job = e.data;\n      try {\n        let value;\n        if (job.kind === 'loadAI') { await loadAI(job.id); value = true; }\n        else if (job.kind === 'ask') value = await ask(job);\n        else if (job.kind === 'transcribe') value = await transcribe(job);\n        else if (job.kind === 'speak') value = await speak(job);\n        else throw new Error('UNKNOWN_JOB');\n        ctx.postMessage({ id: job.id, value }, value instanceof ArrayBuffer ? [value] : []);\n      } catch (err) { ctx.postMessage({ id: job.id, error: String(err instanceof Error ? err.message : err) }); }\n    });\n  };\n})(globalThis);\n";</script>
 <script>
 /* ── src/core/units.js ── */
 /**
@@ -4068,6 +4109,344 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
   return Object.freeze({ FUTURE_TOLERANCE_MS, VOIDABLE, geometryFromInput, createAppService });
 });
 
+/* ── src/assistant/query.js ── */
+
+// Read-only query boundary. The model can select a query, never execute code or write records.
+(function (root, factory) {
+  const req = typeof require === 'function';
+  const mod = factory(req ? require('../domain/projection.js') : root.HS.projection,
+    req ? require('../domain/time.js') : root.HS.time,
+    req ? require('../domain/model.js') : root.HS.model);
+  if (typeof module === 'object' && module.exports) module.exports = mod;
+  (root.HS = root.HS || {}).assistantQuery = mod;
+})(globalThis, /**
+ * @param {typeof import('../domain/projection.js')} projection
+ * @param {typeof import('../domain/time.js')} time
+ * @param {typeof import('../domain/model.js')} model
+ */ function (projection, time, model) {
+  'use strict';
+  const operations = ['status', 'inventory', 'alerts', 'received', 'consumed', 'forecast', 'available', 'running', 'clarify', 'unsupported'];
+  const periods = ['today', 'yesterday', 'last7days', 'last30days'];
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      operation: { type: 'string', enum: operations },
+      siloId: { type: ['string', 'null'] }, materialId: { type: ['string', 'null'] },
+      period: { type: ['string', 'null'], enum: [...periods, null] },
+    }, required: ['operation', 'siloId', 'materialId', 'period'],
+  };
+  /** @param {unknown} raw @param {Dataset} ds @returns {AssistantIntent} */
+  function validate(raw, ds) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('INVALID_INTENT');
+    const v = /** @type {Record<string, unknown>} */ (raw);
+    const keys = ['operation', 'siloId', 'materialId', 'period'];
+    if (Object.keys(v).length !== keys.length || Object.keys(v).some(k => !keys.includes(k))) throw new Error('INVALID_INTENT');
+    if (typeof v.operation !== 'string' || !operations.includes(v.operation) || (v.period !== null && (typeof v.period !== 'string' || !periods.includes(v.period)))) throw new Error('INVALID_INTENT');
+    if (v.siloId !== null && (typeof v.siloId !== 'string' || !ds.silos.some(s => s.active && s.id === v.siloId))) throw new Error('UNKNOWN_SILO');
+    if (v.materialId !== null && (typeof v.materialId !== 'string' || !ds.materials.some(m => m.active && m.id === v.materialId))) throw new Error('UNKNOWN_MATERIAL');
+    if (['received', 'consumed'].includes(String(v.operation)) ? v.period === null : v.period !== null) throw new Error('INVALID_PERIOD');
+    return /** @type {AssistantIntent} */ (/** @type {unknown} */ (v));
+  }
+  /** @param {string} s */
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  /** @param {string} q @param {string} name */
+  function mentions(q, name) {
+    const escaped = normalize(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return !!escaped && new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`).test(q);
+  }
+  /** Limited offline parser: rejects questions it cannot interpret instead of guessing. @param {string} text @param {Dataset} ds @returns {AssistantIntent} */
+  function basicIntent(text, ds) {
+    const words = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
+    const englishWords = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+    const q = normalize(text).replace(/\b(silo|tanque|tank)\s+(?:numero\s+|number\s+)?(uno|dos|tres|cuatro|cinco|seis|siete|ocho|one|two|three|four|five|six|seven|eight)\b/g, (_match, prefix, word) => `${prefix} ${(words.includes(word) ? words : englishWords).indexOf(word) + 1}`).replace(/\b(silo|tanque|tank)\s+(numero|number)\s+(\d+)\b/g, '$1 $3');
+    /** @type {AssistantIntent} */ const out = { operation: 'unsupported', siloId: null, materialId: null, period: null };
+    if (!q.trim() || text.length > 2000) return out;
+    if (/\b(arranca|arrancar|enciende|apaga|deten|detener|registra|borra|elimina|modifica|cambia|start|stop|delete|update|set)\b/.test(q)) return out;
+    // Multiple silos, explicit dates and unsupported relative ranges need clarification.
+    if (/\b(?:silo|tanque|tank)\s*#?\s*\d+\s*(?:y|and|,|al|to|-)\s*(?:silo\s*)?\d+/.test(q) || /\d{1,4}[-/]\d{1,2}/.test(q) || /\b(anteayer|last week|semana pasada|mes pasado|manana|tomorrow|turno|shift)\b/.test(q)) return { ...out, operation: 'clarify' };
+    const matches = [...q.matchAll(/\b(?:silo|tanque|tank)\s*#?\s*(\d+)\b/g)];
+    if (matches.length > 1) return { ...out, operation: 'clarify' };
+    if (!matches.length && /\b(numero|number)\s*\d+/.test(q)) return { ...out, operation: 'clarify' };
+    if (matches.length) {
+      const id = ds.silos.find(s => s.active && normalize(s.name).match(new RegExp(`\\b${Number(matches[0][1])}\\b`)));
+      if (!id) return { ...out, operation: 'clarify' };
+      out.siloId = id.id;
+    }
+    const named = ds.silos.filter(s => s.active && (mentions(q, s.name) || mentions(q, s.id)));
+    if (named.length > 1 || (named.length === 1 && out.siloId && named[0].id !== out.siloId)) return { ...out, operation: 'clarify' };
+    if (named.length === 1) out.siloId = named[0].id;
+    const materials = ds.materials.filter(m => m.active && mentions(q, m.name));
+    if (materials.length > 1) return { ...out, operation: 'clarify' };
+    if (materials.length) out.materialId = materials[0].id;
+    if (/\b(alertas?|alarmas?|alerts?|alarms?)\b/.test(q)) out.operation = 'alerts';
+    else if (/vaci|empty|autonomia|durara|restante|remaining|run out/.test(q)) out.operation = 'forecast';
+    else if (/recibi|recibio|recibido|recepc|received|deliver/.test(q)) out.operation = 'received';
+    else if (/consum|consumption|utiliz|material used|\bused\b|gast/.test(q)) out.operation = 'consumed';
+    // Antes que "capacidad" a secas: espacio libre para descargar un camión
+    else if (/disponible|\bcaben?\b|\bespacio\b|\blibre\b|\bavailable\b|\broom\b|\bspace\b|\bfits?\b|can (?:it )?receive|puede recibir/.test(q)) out.operation = 'available';
+    else if (/\b(rotativas?|valvulas?|valves?)\b|en marcha|funcionando|\brunning\b/.test(q)) out.operation = 'running';
+    else if (/inventario|inventory|total|cuanto|cuanta|queda|nivel|level|estado|status|capacity|capacidad|how much/.test(q)) out.operation = out.siloId ? 'status' : 'inventory';
+    if (['received', 'consumed'].includes(out.operation)) {
+      if (/\b(hoy|today)\b/.test(q)) out.period = 'today';
+      else if (/\b(ayer|yesterday)\b/.test(q)) out.period = 'yesterday';
+      else if (/\b(7|siete|seven)\s*(dias|days)\b/.test(q)) out.period = 'last7days';
+      else if (/\b(30|treinta|thirty)\s*(dias|days)\b/.test(q)) out.period = 'last30days';
+      else return { ...out, operation: 'clarify', period: null };
+      const range = q.match(/\b(\d+)\s*(dias|days)\b/);
+      if (range && !['7', '30'].includes(range[1])) return { ...out, operation: 'clarify', period: null };
+    } else if (/\b(hoy|ayer|yesterday|days|dias)\b/.test(q)) return { ...out, operation: 'clarify' };
+    return out;
+  }
+  /** The model selects an operation only. Entity/time filters are resolved from the question, never guessed by the model.
+   * @param {string} text @param {Dataset} ds @param {string} operation @returns {AssistantIntent} */
+  function classifiedIntent(text, ds, operation) {
+    /** @type {Record<string, string>} */ const aliases = { stock: 'inventory', capacity: 'status', level: 'status', flow: 'status', alarms: 'alerts', deliveries: 'received', delivery: 'received', consumption: 'consumed', autonomy: 'forecast', space: 'available', room: 'available', free: 'available', valves: 'running', valve: 'running' };
+    if (Object.hasOwn(aliases, operation)) operation = aliases[operation];
+    /** @type {Record<string, string>} */ const keywords = { status: 'estado', inventory: 'inventario', alerts: 'alertas', received: 'recepciones', consumed: 'consumo', forecast: 'autonomia', available: 'disponible', running: 'rotativas' };
+    if (!Object.hasOwn(keywords, operation)) return { operation: operation === 'unsupported' ? 'unsupported' : 'clarify', siloId: null, materialId: null, period: null };
+    const literal = basicIntent(text, ds);
+    if (!['unsupported', 'clarify'].includes(literal.operation)) return literal;
+    const scoped = basicIntent(`${keywords[operation]} ${text}`, ds);
+    if (scoped.operation === 'clarify' || scoped.operation === 'unsupported') return scoped;
+    scoped.operation = /** @type {AssistantOperation} */ (operation === 'inventory' && scoped.siloId ? 'status' : operation);
+    try { return validate(scoped, ds); }
+    catch { return { ...scoped, operation: 'clarify', period: null }; }
+  }
+  /** @param {AssistantPeriod} period @param {number} cutoff @param {string} tz */
+  function rangeFor(period, cutoff, tz) {
+    const day = time.startOfLocalDay(cutoff, tz);
+    const p = time.zonedParts(day, tz);
+    const previous = (/** @type {number} */ n) => time.zonedToUtc({ year: p.year, month: p.month, day: p.day - n }, tz);
+    if (period === 'yesterday') return { from: previous(1), to: day };
+    if (period === 'last7days') return { from: previous(6), to: cutoff };
+    if (period === 'last30days') return { from: previous(29), to: cutoff };
+    return { from: day, to: cutoff };
+  }
+  /** Textos legibles (ES/EN) de reglas de alerta, severidades y marcas del motor. */
+  /** @type {Record<string, [string, string]>} */
+  const RULE_TEXT = {
+    LOW_LEVEL: ['nivel bajo (< {p} %)', 'low level (< {p} %)'],
+    HIGH_LEVEL: ['nivel alto (> {p} %)', 'high level (> {p} %)'],
+    EMPTY_RUNNING: ['silo vacío con la rotativa en marcha', 'empty silo with the rotary valve running'],
+    OVERFLOW_RISK: ['riesgo de rebose: recepción por encima de la capacidad', 'overflow risk: receipt above capacity'],
+    MATERIAL_MISMATCH: ['material incompatible con el silo', 'material does not match the silo'],
+  };
+  /** @type {Record<string, [string, string]>} */
+  const SEVERITY_TEXT = { CRITICAL: ['crítica', 'critical'], WARNING: ['advertencia', 'warning'], INFO: ['información', 'info'] };
+  /** @type {Record<string, [string, string]>} */
+  const FLAG_TEXT = {
+    OVER_CAPACITY: ['una recepción superó la capacidad y se recortó', 'a receipt exceeded capacity and was clipped'],
+    MATERIAL_MISMATCH: ['una recepción no coincide con el material del silo', 'a receipt does not match the silo material'],
+    NO_MATERIAL_ASSIGNED: ['recepción en un silo sin material asignado', 'receipt into a silo without material'],
+    MATERIAL_CHANGE_NOT_EMPTY: ['cambio de material con el silo sin vaciar', 'material change while the silo was not empty'],
+    ADJUSTMENT_ABOVE_CAPACITY: ['una medición superó la capacidad del silo', 'a measurement exceeded silo capacity'],
+    MASS_WITHOUT_MATERIAL: ['masa registrada sin material asignado', 'mass recorded without material'],
+    MISSING_FLOW: ['periodo de rotativa sin flujo ni RPM', 'valve period without flow or RPM'],
+    PERIOD_OVERLAP: ['periodos de rotativa superpuestos', 'overlapping valve periods'],
+    FLOW_MODE_FALLBACK: ['el flujo usó el dato alterno al modo configurado', 'flow used the alternate data source'],
+  };
+
+  /**
+   * Ejecuta una intención validada sobre una copia de los datos y compone la respuesta factual.
+   * Los números siguen el formato de la HMI (en: 1,234.5 · es: 1.234,5) y las fechas la hora de la planta.
+   * @param {Dataset} ds @param {unknown} raw
+   * @param {{cutoff: number, timeZone: string, language?: string, numberFormat?: string}} opts
+   * @returns {AssistantResult}
+   */
+  function execute(ds, raw, { cutoff, timeZone, language = 'es', numberFormat = 'en' }) {
+    const intent = validate(raw, ds);
+    if (!Number.isFinite(cutoff) || !time.isValidTimeZone(timeZone)) throw new Error('INVALID_CONTEXT');
+    const en = language === 'en';
+    /** @param {string} es @param {string} enText */
+    const tr = (es, enText) => (en ? enText : es);
+    const numberLocale = numberFormat === 'es' ? 'de-DE' : 'en-US';
+    const n = (/** @type {number | null | undefined} */ v, d = 1) => v == null || !Number.isFinite(v) ? tr('sin dato', 'unavailable') : new Intl.NumberFormat(numberLocale, { maximumFractionDigits: d }).format(v);
+    const pad = (/** @type {number} */ x) => String(x).padStart(2, '0');
+    const date = (/** @type {number} */ v) => { const p = time.zonedParts(v, timeZone); return `${pad(p.day)}/${pad(p.month)}/${p.year} ${pad(p.hour)}:${pad(p.minute)}`; };
+    const hours = (/** @type {number} */ h) => (h < 48 ? `${n(h, 1)} h` : `${n(h / 24, 1)} ${tr('días', 'days')}`);
+    /** @param {Record<string, [string, string]>} table @param {string} code */
+    const label = (table, code) => (table[code] ? table[code][en ? 1 : 0] : code);
+    /** @type {AssistantResult} */ const result = { intent, cutoff, rows: [], evidence: [], warnings: [], flags: [], demo: model.setting(ds, 'meta.demo') === true, period: null, text: '' };
+    if (intent.operation === 'clarify' || intent.operation === 'unsupported') {
+      const readOnly = intent.operation === 'unsupported'
+        ? tr('El asistente solo consulta: no arranca ni para rotativas ni registra movimientos; use los botones de la HMI.\n', 'The assistant only answers questions: it does not start or stop valves or record movements; use the HMI buttons.\n')
+        : '';
+      result.text = readOnly + tr(
+        'Puedo consultar: inventario («Inventario total», «¿Cuánto Biopaque hay?»), estado de un silo («¿Cuánto queda en el silo 6?»), capacidad disponible («¿Cuánto cabe en el silo 8?»), rotativas en marcha, alertas activas, vaciado estimado («¿Cuándo se vacía el silo 6?») y recepciones o consumo de hoy, ayer, últimos 7 o 30 días («Consumo del silo 8 ayer»). Indica un solo silo o toda la planta.',
+        'I can query: inventory (“Total inventory”, “How much Biopaque is there?”), silo status (“How much remains in silo 6?”), available capacity (“How much fits in silo 8?”), running valves, active alerts, estimated emptying (“When will silo 6 be empty?”) and receipts or consumption for today, yesterday, last 7 or 30 days (“Silo 8 consumption yesterday”). Name one silo or the whole plant.');
+      return result;
+    }
+    const plantWide = !intent.siloId;
+    const selected = ds.silos.filter(s => s.active && (!intent.siloId || s.id === intent.siloId)).sort((a, b) => a.order - b.order);
+    const views = selected.map(s => projection.siloView(ds, s.id, cutoff)).filter(v => !intent.materialId || v.sim.state.materialId === intent.materialId || ['received', 'consumed'].includes(intent.operation));
+    /** @type {string[]} */ const lines = [];
+    /** @type {Map<string, number>} */ const byMaterial = new Map();
+    let unconfigured = 0;
+    for (const v of views) {
+      const state = v.sim.state;
+      const material = ds.materials.find(m => m.id === state.materialId);
+      const name = `${v.silo.name}${material ? ` · ${material.name}` : ''}`;
+      for (const f of v.sim.flags) {
+        result.warnings.push(`${v.silo.name}: ${label(FLAG_TEXT, f.code)}`);
+        /** @type {any[]} */ (result.flags).push({ siloId: v.silo.id, code: f.code, ts: f.ts, refId: f.refId });
+      }
+      const ownValves = new Set(ds.valves.filter(x => x.siloId === v.silo.id).map(x => x.id));
+      result.evidence.push(...ds.adjustments.filter(a => a.siloId === v.silo.id && !a.voided && a.ts <= cutoff).map(a => a.id),
+        ...ds.receptions.filter(r => r.siloId === v.silo.id && !r.voided && r.ts <= cutoff).map(r => r.id),
+        ...ds.valvePeriods.filter(p => ownValves.has(p.valveId) && !p.voided && p.start <= cutoff).map(p => p.id),
+        ...ds.assignments.filter(a => a.siloId === v.silo.id && !a.voided && a.ts <= cutoff).map(a => a.id),
+        ...ds.valveConfigs.filter(c => ownValves.has(c.valveId) && !c.voided && c.effectiveFrom <= cutoff).map(c => c.id),
+        ...ds.materialProps.filter(p => !p.voided && p.effectiveFrom <= cutoff).map(p => p.id));
+      const valveText = !state.valveRunning ? tr('rotativa detenida', 'rotary valve stopped')
+        : state.massKg === 0 ? tr('rotativa en marcha con el silo vacío', 'rotary valve running on an empty silo')
+          : state.nominalFlowKgH == null ? tr('rotativa en marcha sin flujo registrado', 'rotary valve running without recorded flow')
+            : tr(`rotativa en marcha a ${n(state.nominalFlowKgH, 0)} kg/h`, `rotary valve running at ${n(state.nominalFlowKgH, 0)} kg/h`);
+      if (intent.operation === 'status' || intent.operation === 'inventory') {
+        result.rows.push({ siloId: v.silo.id, ...state });
+        if (material) byMaterial.set(material.name, (byMaterial.get(material.name) || 0) + state.massKg);
+        if (intent.operation === 'status') {
+          const pct = state.capacityKg == null ? '' : ` (${n(state.levelPct)} % ${tr('de', 'of')} ${n(state.capacityKg, 0)} kg)`;
+          const remaining = state.hoursRemaining == null ? '' : `; ${tr('vacío en', 'empty in')} ${hours(state.hoursRemaining)}`;
+          lines.push(`${name}: ${n(state.massKg, 0)} kg${pct}; ${tr('nivel', 'level')} ${n(state.levelM, 2)} m; ${valveText}${remaining}.`);
+        } else {
+          lines.push(`${name}: ${n(state.massKg, 0)} kg${state.capacityKg == null ? '' : ` (${n(state.levelPct)} %)`}.`);
+        }
+      } else if (intent.operation === 'forecast') {
+        result.rows.push({ siloId: v.silo.id, emptyAt: state.emptyAt, hoursRemaining: state.hoursRemaining });
+        lines.push(`${name}: ${state.massKg === 0 ? tr('vacío.', 'empty.') : !state.valveRunning ? tr('rotativa parada; sin fecha de vaciado.', 'rotary valve stopped; no emptying date.') : state.emptyAt == null ? tr('sin caudal suficiente para pronosticar.', 'insufficient flow data for a forecast.') : `${hours(/** @type {number} */ (state.hoursRemaining))}; ${date(state.emptyAt)}.`}`);
+      } else if (intent.operation === 'available') {
+        const freeM3 = state.volumeM3 == null ? null : state.totalVolumeM3 - state.volumeM3;
+        if (state.capacityKg == null) {
+          unconfigured++;
+          if (!plantWide) lines.push(`${name}: ${tr('sin material asignado; el espacio libre es', 'no material assigned; free space is')} ${n(freeM3, 2)} m³ (${tr('los kg dependen del material', 'kg depend on the material')}).`);
+          result.rows.push({ siloId: v.silo.id, availableKg: null, capacityKg: null, freeM3 });
+          continue;
+        }
+        result.rows.push({ siloId: v.silo.id, availableKg: state.availableKg, capacityKg: state.capacityKg, freeM3 });
+        const freePct = state.levelPct == null ? null : 100 - state.levelPct;
+        lines.push(`${name}: ${tr('caben', 'fits')} ${n(state.availableKg, 0)} kg (${n(freePct)} % ${tr('libre de', 'free of')} ${n(state.capacityKg, 0)} kg).`);
+      } else if (intent.operation === 'running') {
+        if (!state.materialId && !state.valveRunning) { unconfigured++; continue; }
+        result.rows.push({ siloId: v.silo.id, valveRunning: state.valveRunning, flowKgH: state.nominalFlowKgH, effectiveFlowKgH: state.effectiveFlowKgH, hoursRemaining: state.hoursRemaining });
+        if (plantWide && !state.valveRunning) continue;
+        const remaining = state.hoursRemaining == null ? '' : `; ${tr('vacío en', 'empty in')} ${hours(state.hoursRemaining)} (${date(/** @type {number} */ (state.emptyAt))})`;
+        lines.push(`${name}: ${valveText}${remaining}.`);
+      } else if (intent.operation === 'alerts') {
+        const active = v.alerts.filter(a => a.active);
+        for (const a of active) {
+          result.rows.push({ ...a });
+          const p = /** @type {{thresholdPct?: number}} */ (a.data).thresholdPct;
+          const text = label(RULE_TEXT, a.rule).replace('{p}', p == null ? '' : n(p, 0));
+          const ack = /** @type {{acknowledged?: boolean}} */ (a).acknowledged ? tr(' · reconocida', ' · acknowledged') : '';
+          lines.push(`${name}: ${label(SEVERITY_TEXT, a.severity)} · ${text} (${tr('desde', 'since')} ${date(a.tStart)})${ack}.`);
+        }
+      } else {
+        const range = rangeFor(intent.period, cutoff, timeZone);
+        result.period = range;
+        const recs = v.sim.receptions.filter(r => r.ts >= range.from && r.ts < range.to && (!intent.materialId || ds.receptions.find(x => x.id === r.id)?.materialId === intent.materialId));
+        const assignments = ds.assignments.filter(a => a.siloId === v.silo.id && !a.voided).sort((a, b) => a.ts - b.ts);
+        const segments = v.sim.segments.filter(s => s.t1 > range.from && s.t0 < range.to && (!intent.materialId || assignments.filter(a => a.ts <= s.t0).at(-1)?.materialId === intent.materialId));
+        const received = recs.reduce((sum, r) => sum + r.massKg, 0);
+        const consumed = segments.reduce((sum, s) => sum + s.consumedKg * ((Math.min(s.t1, range.to) - Math.max(s.t0, range.from)) / (s.t1 - s.t0)), 0);
+        const value = intent.operation === 'received' ? received : consumed;
+        const historyStart = v.sim.points[0]?.t;
+        if (historyStart == null || historyStart > range.from) result.warnings.push(`${v.silo.name}: ${tr('historial parcial; no se confirma el total del período', 'partial history; the period total is not confirmed')}`);
+        result.rows.push({ siloId: v.silo.id, kg: value, count: recs.length, recordedOnly: true });
+        if (plantWide && value === 0 && historyStart == null) continue;
+        const detail = intent.operation === 'received'
+          ? `${tr('recibidos en registros', 'received in records')} (${recs.length} ${tr(recs.length === 1 ? 'recepción' : 'recepciones', recs.length === 1 ? 'receipt' : 'receipts')})`
+          : tr('consumidos por balance', 'consumed by balance');
+        lines.push(`${v.silo.name}: ${n(value, 0)} kg ${detail}.`);
+      }
+    }
+    if (intent.operation === 'inventory') {
+      lines.push(`${tr('Inventario total estimado', 'Total estimated inventory')}: ${n(result.rows.reduce((s, r) => s + r.massKg, 0), 0)} kg.`);
+      if (!intent.materialId && byMaterial.size > 1) lines.push(`${tr('Por material', 'By material')}: ${[...byMaterial].map(([m, kg]) => `${m} ${n(kg, 0)} kg`).join(' · ')}.`);
+    }
+    if (plantWide && (intent.operation === 'received' || intent.operation === 'consumed') && result.rows.length > 1) {
+      lines.push(`${tr('Total planta', 'Plant total')}: ${n(result.rows.reduce((s, r) => s + r.kg, 0), 0)} kg.`);
+    }
+    if (intent.operation === 'available' && plantWide) {
+      const total = result.rows.reduce((s, r) => s + (r.availableKg || 0), 0);
+      lines.push(`${tr('Capacidad disponible total (silos con material)', 'Total available capacity (silos with material)')}: ${n(total, 0)} kg.`);
+      if (unconfigured) lines.push(tr(`${unconfigured} silos sin material asignado no se incluyen.`, `${unconfigured} silos without material are not included.`));
+    }
+    if (intent.operation === 'running' && plantWide) {
+      const running = result.rows.filter(r => r.valveRunning).length;
+      const configured = result.rows.length;
+      lines.push(running ? tr(`Rotativas en marcha: ${running} de ${configured} silos con material.`, `Valves running: ${running} of ${configured} silos with material.`) : tr('Ninguna rotativa en marcha.', 'No rotary valve is running.'));
+    }
+    if (intent.operation === 'forecast' || intent.operation === 'running') lines.push(tr('Proyección al caudal actual, sin recepciones futuras no registradas.', 'Projection at current flow, without future unrecorded receipts.'));
+    if (intent.operation === 'available') lines.push(tr('Estimado por balance de masa: confirme con una medición antes de descargar un camión lleno.', 'Estimated by mass balance: confirm with a measurement before unloading a full truck.'));
+    if (!lines.length) lines.push(intent.operation === 'alerts' ? tr('Sin alertas activas.', 'No active alerts.') : tr('Sin registros coincidentes.', 'No matching records.'));
+    if (result.period) lines.push(`${tr('Período [desde, hasta)', 'Period [from, to)')}: ${date(result.period.from)} → ${date(result.period.to)}.`);
+    result.evidence = [...new Set(result.evidence)];
+    result.warnings = [...new Set(result.warnings)];
+    lines.push(`${tr('Corte', 'Cutoff')}: ${date(cutoff)} (${timeZone}). ${result.demo ? tr('Datos de demostración.', 'Demonstration data.') : tr('Registros de este navegador.', 'Records from this browser.')}`);
+    if (['status', 'inventory'].includes(intent.operation)) lines.push(tr('Estimado por balance de masa, sin medición de sensor de nivel.', 'Estimated by mass balance, not a level sensor reading.'));
+    if (result.warnings.length) lines.push(`${tr('Advertencias', 'Warnings')}: ${result.warnings.join('; ')}.`);
+    result.text = lines.join('\n');
+    return result;
+  }
+  return Object.freeze({ schema, validate, basicIntent, classifiedIntent, rangeFor, execute });
+});
+
+/* ── src/assistant/client.js ── */
+
+(function (root, factory) {
+  const mod = factory(root);
+  if (typeof module === 'object' && module.exports) module.exports = mod;
+  (root.HS = root.HS || {}).assistantClient = mod;
+})(globalThis, /** @param {typeof globalThis} root */ function (root) {
+  'use strict';
+  /** @param {{onProgress?: (text: string) => void}} [options] */
+  function create(options = {}) {
+    /** @type {Worker | null} */ let worker = null;
+    let nextId = 0;
+    /** @type {Map<number, {resolve: (v: any) => void, reject: (e: Error) => void, timer: ReturnType<typeof setTimeout>}>} */ const pending = new Map();
+    let aiReady = false;
+    function cancel(reason = 'CANCELLED') {
+      if (worker) worker.terminate();
+      worker = null; aiReady = false;
+      for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error(reason)); }
+      pending.clear();
+    }
+    function start() {
+      if (worker) return;
+      const source = /** @type {any} */ (root).HS_ASSISTANT_WORKER;
+      if (!source || !root.Worker) throw new Error('WORKER_UNAVAILABLE');
+      const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      URL.revokeObjectURL(url);
+      worker.onmessage = e => {
+        const msg = e.data;
+        const entry = pending.get(msg.id);
+        if (!entry) return;
+        if (msg.progress) { if (options.onProgress) options.onProgress(msg.progress); return; }
+        clearTimeout(entry.timer); pending.delete(msg.id);
+        if (msg.error) entry.reject(new Error(msg.error)); else entry.resolve(msg.value);
+      };
+      worker.onerror = () => cancel('WORKER_FAILED');
+    }
+    /** @param {string} kind @param {Record<string, any>} [data] @param {number} [timeout] @returns {Promise<any>} */
+    function request(kind, data = {}, timeout = 90_000) {
+      start();
+      const id = ++nextId;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { cancel('TIMEOUT'); }, timeout);
+        pending.set(id, { resolve, reject, timer });
+        try { /** @type {Worker} */ (worker).postMessage({ ...data, kind, id }); }
+        catch (err) { clearTimeout(timer); pending.delete(id); reject(err); }
+      });
+    }
+    return {
+      request, cancel, get aiReady() { return aiReady; },
+      async loadAI() { await request('loadAI', {}, 600_000); aiReady = true; },
+    };
+  }
+  return { create };
+});
+
 /* ── src/ui/i18n.js ── */
 /**
  * hmiSilos · ui/i18n
@@ -5638,6 +6017,267 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
   return Object.freeze({ get, readForm, notice, geometryFromValues });
 });
 
+/* ── src/ui/assistant-panel.js ── */
+
+(function (root) {
+  'use strict';
+  const HS = /** @type {any} */ (root).HS;
+  /** @param {{app: any, language: () => string, storage: () => string}} deps */
+  function mount({ app, language, storage }) {
+    const host = document.createElement('div');
+    host.id = 'assistant-host';
+    // Panel lateral con el mismo lenguaje visual de la HMI (franja navy, Barlow, botones .btn)
+    host.innerHTML = `<section id="assistant-panel" class="assistant-panel" aria-labelledby="assistant-title" hidden>
+        <header class="assistant-head"><div><span class="eyebrow" id="assistant-mode"></span><h3 id="assistant-title"></h3></div><button type="button" class="icon-btn" id="assistant-close">✕</button></header>
+        <div class="assistant-meta"><span class="chip" id="assistant-source"></span><span class="spacer"></span><button type="button" class="btn small" id="assistant-ai"></button><button type="button" class="btn small ghost" id="assistant-cancel"></button></div>
+        <p id="assistant-download" class="assistant-hint"></p>
+        <div id="assistant-quick" class="assistant-quick" role="group"></div>
+        <div id="assistant-messages" class="assistant-messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <p id="assistant-status" class="assistant-status" role="status"></p>
+        <form id="assistant-form"><label for="assistant-input" id="assistant-input-label" class="eyebrow"></label><textarea id="assistant-input" rows="2" maxlength="2000" required></textarea>
+          <div class="assistant-send"><button type="button" class="btn small" id="assistant-mic"></button><button type="submit" class="btn primary" id="assistant-send"></button></div></form>
+        <div class="assistant-audio"><label><input type="checkbox" id="assistant-read"><span id="assistant-read-label"></span></label><button type="button" class="btn small" id="assistant-listen"></button><button type="button" class="btn small" id="assistant-silence"></button></div>
+        <audio id="assistant-player" controls hidden></audio><p id="assistant-privacy" class="assistant-hint"></p>
+        <details class="assistant-credits"><summary id="assistant-credits-label"></summary><p>Qwen2.5 / Transformers.js: Apache 2.0. Whisper: MIT. Piper WASM: MIT; eSpeak NG: GPL 3.0.</p><p><a href="https://github.com/diffusionstudio/piper-wasm" target="_blank" rel="noopener">Piper WASM source</a> · <a href="https://github.com/rhasspy/espeak-ng" target="_blank" rel="noopener">eSpeak source</a></p><p><a href="https://huggingface.co/rhasspy/piper-voices/blob/main/es/es_ES/sharvard/medium/MODEL_CARD" target="_blank" rel="noopener">SHARVARD Spanish voice</a> · <a href="https://datashare.ed.ac.uk/handle/10283/574" target="_blank" rel="noopener">SHARVARD corpus</a>: CC BY 3.0, Universidad de Edimburgo. <a href="https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/ljspeech/medium/MODEL_CARD" target="_blank" rel="noopener">LJ Speech English voice</a>: public domain.</p></details>
+      </section>`;
+    document.body.append(host);
+    // Botón de apertura en la cabecera, junto al operador (o flotante si la cabecera no existe)
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.id = 'assistant-toggle';
+    toggle.className = 'btn assistant-btn';
+    toggle.setAttribute('aria-controls', 'assistant-panel');
+    toggle.setAttribute('aria-expanded', 'false');
+    const tools = document.querySelector('.header-tools');
+    const operator = document.getElementById('operator');
+    if (tools && operator && operator.parentElement === tools) tools.insertBefore(toggle, operator);
+    else if (tools) tools.prepend(toggle);
+    else { toggle.classList.add('assistant-floating'); host.prepend(toggle); }
+    const attribution = document.createElement('p');
+    attribution.textContent = 'SHARVARD: Vincent Aubanel, María Luisa García Lecumberri y Martin Cooke (2014), LISTA Consortium. CC BY 3.0.';
+    /** @type {HTMLElement} */ (host.querySelector('.assistant-credits')).append(attribution);
+    /** @param {string} id @returns {any} */ const el = id => (id === 'toggle' ? toggle : host.querySelector(`#assistant-${id}`));
+    /** Preguntas frecuentes de un clic (todas las resuelven las consultas básicas, sin IA). */
+    const QUICK = [
+      ['Inventario total', 'Total inventory'], ['Alertas activas', 'Active alerts'], ['¿Cuándo se vacía cada silo?', 'When will each silo be empty?'],
+      ['Capacidad disponible', 'Available capacity'], ['Rotativas en marcha', 'Running valves'], ['Consumo de ayer', 'Consumption yesterday'],
+    ];
+    /** @param {string} es @param {string} en */ const t = (es, en) => language() === 'en' ? en : es;
+    let busy = false;
+    let generation = 0;
+    let recording = false;
+    let voiceDraft = false;
+    /** @type {MediaStream | null} */ let stream = null;
+    /** @type {MediaRecorder | null} */ let recorder = null;
+    /** @type {ReturnType<typeof setTimeout> | null} */ let recordTimer = null;
+    /** @type {HTMLAudioElement | null} */ let audio = null;
+    /** @type {string | null} */ let audioUrl = null;
+    let lastAnswer = '';
+    let answerLanguage = 'es';
+    const client = HS.assistantClient.create({ onProgress: (/** @type {string} */ msg) => { el('status').textContent = msg; } });
+    /** @param {boolean} value @param {string} [status] */
+    function setBusy(value, status = '') {
+      busy = value;
+      el('panel').setAttribute('aria-busy', String(value));
+      el('send').disabled = value || recording;
+      el('ai').disabled = value || recording || client.aiReady;
+      el('mic').disabled = value;
+      el('listen').disabled = value || recording || !lastAnswer;
+      el('cancel').disabled = !value && !recording;
+      el('cancel').hidden = !value && !recording;
+      el('status').textContent = status;
+      refresh();
+    }
+    function refresh() {
+      el('toggle').innerHTML = `<span aria-hidden="true">✦</span><span class="assistant-label">${t('Asistente', 'Assistant')}</span>`;
+      el('toggle').setAttribute('aria-label', t('Asistente de planta', 'Plant assistant'));
+      el('toggle').title = t('Consultas sobre inventario, alertas y consumo', 'Questions about inventory, alerts and consumption');
+      el('quick').setAttribute('aria-label', t('Preguntas rápidas', 'Quick questions'));
+      el('quick').innerHTML = '';
+      for (const [es, en] of QUICK) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t(es, en);
+        b.disabled = busy || recording;
+        b.onclick = () => { el('input').value = b.textContent; el('form').requestSubmit(); };
+        el('quick').append(b);
+      }
+      el('title').textContent = t('Asistente de planta', 'Plant assistant');
+      el('mode').textContent = client.aiReady ? t('IA local · consultas verificadas', 'Local AI · verified queries') : t('Consultas básicas · IA sin activar', 'Basic queries · AI not enabled');
+      el('close').setAttribute('aria-label', t('Cerrar asistente', 'Close assistant'));
+      el('source').textContent = `${app.isDemo() ? t('DEMOSTRACIÓN', 'DEMONSTRATION') : t('Registros operativos', 'Operational records')} · ${storage() === 'memory' ? t('memoria temporal de este equipo', 'temporary memory on this device') : t('datos de este navegador', 'data from this browser')}`;
+      el('ai').textContent = client.aiReady ? t('IA activada', 'AI enabled') : t('Activar IA local', 'Enable local AI');
+      el('cancel').textContent = t('Cancelar', 'Cancel');
+      el('download').textContent = t('IA y voz se ejecutan en tu equipo y descargan modelos la primera vez (cientos de MB). La velocidad depende del equipo.', 'AI and voice run on your device and download models on first use (hundreds of MB). Speed depends on the device.');
+      el('input-label').textContent = t('Tu consulta', 'Your question');
+      el('input').placeholder = t('¿Cuánto queda en el silo 6?', 'How much remains in silo 6?');
+      el('send').textContent = t('Consultar', 'Ask');
+      el('mic').textContent = recording ? t('■ Terminar grabación', '■ Finish recording') : t('🎙 Hablar', '🎙 Speak');
+      el('read-label').textContent = t('Leer respuestas', 'Read answers');
+      el('listen').textContent = t('Escuchar', 'Listen');
+      el('silence').textContent = t('Silenciar', 'Silence');
+      el('privacy').textContent = t('Texto y audio se procesan en tu equipo. Solo se descargan modelos. El asistente consulta; no modifica registros.', 'Text and audio are processed on your device. Only models are downloaded. The assistant queries records without changing them.');
+      el('credits-label').textContent = t('Créditos y licencias', 'Credits and licenses');
+    }
+    /** @param {string} role @param {string} text @param {AssistantResult} [result] */
+    function message(role, text, result) {
+      const article = document.createElement('article');
+      article.className = `assistant-message assistant-${role}`;
+      const title = document.createElement('strong'); title.textContent = role === 'user' ? t('Tú', 'You') : t('Asistente', 'Assistant');
+      const body = document.createElement('p'); body.textContent = text;
+      article.append(title, body);
+      if (result && result.evidence.length) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary'); summary.textContent = t('Ver origen del cálculo', 'View calculation sources');
+        const refs = document.createElement('p');
+        refs.textContent = `${result.interpreter === 'ai' ? t('Interpretada con IA local', 'Interpreted with local AI') : t('Consulta básica', 'Basic query')} · ${result.intent.operation} · ${result.evidence.length} ${t('registros', 'records')}: ${result.evidence.slice(0, 100).join(', ')}${result.evidence.length > 100 ? '…' : ''}`;
+        details.append(summary, refs); article.append(details);
+      }
+      el('messages').append(article);
+      while (el('messages').children.length > 40) el('messages').firstElementChild.remove();
+      el('messages').scrollTop = el('messages').scrollHeight;
+    }
+    /** @param {unknown} err */
+    function error(err) {
+      const code = err instanceof Error ? err.message : String(err);
+      if (code === 'CANCELLED') return;
+      const text = code.includes('AI_UNAVAILABLE') ? t('La IA local no está disponible en este equipo. Puedes seguir usando las consultas básicas.', 'Local AI is unavailable on this device. Basic queries are still available.') :
+        t('No se pudo completar la tarea. Comprueba conexión, permisos y compatibilidad del navegador; puedes reintentar o usar texto y consultas básicas.', 'The task could not finish. Check connection, permissions and browser compatibility; retry or use text and basic queries.');
+      message('assistant', text);
+    }
+    function silence() {
+      if (audio) { audio.pause(); audio.src = ''; audio = null; }
+      el('player').hidden = true;
+      if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+    }
+    /** @param {number} token */
+    async function read(token) {
+      silence();
+      setBusy(true, t('Generando voz local…', 'Generating local speech…'));
+      const wav = await client.request('speak', { text: lastAnswer, language: answerLanguage }, 300_000);
+      if (token !== generation) return;
+      audioUrl = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+      audio = /** @type {HTMLAudioElement} */ (el('player'));
+      audio.src = audioUrl; audio.hidden = false;
+      audio.onended = silence;
+      try { await audio.play(); }
+      catch { el('status').textContent = t('El navegador bloqueó la reproducción. Pulsa Escuchar.', 'Playback was blocked by the browser. Press Listen.'); }
+    }
+    function releaseMic() {
+      if (recordTimer) clearTimeout(recordTimer);
+      recordTimer = null;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    function cancel() {
+      generation++;
+      client.cancel(); silence();
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      recorder = null; recording = false; voiceDraft = false; releaseMic();
+      setBusy(false, t('Cancelado. Los registros se conservan.', 'Cancelled. Records are preserved.'));
+    }
+    /** En escritorio el panel empieza bajo la cabecera (idioma, tema y operador siguen a mano); en teléfono ocupa la pantalla. */
+    function place() {
+      const header = document.querySelector('.app-header');
+      const top = header && root.innerWidth > 760 ? Math.max(0, Math.round(header.getBoundingClientRect().bottom)) : 0;
+      el('panel').style.top = `${top}px`;
+    }
+    root.addEventListener('resize', () => { if (!el('panel').hidden) place(); });
+    el('toggle').onclick = () => {
+      if (!el('panel').hidden) { el('close').click(); return; }
+      place();
+      el('panel').hidden = false; el('toggle').setAttribute('aria-expanded', 'true'); refresh(); el('input').focus();
+    };
+    el('close').onclick = () => { cancel(); el('panel').hidden = true; el('toggle').setAttribute('aria-expanded', 'false'); el('toggle').focus(); };
+    host.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); el('close').click(); } });
+    el('cancel').onclick = cancel;
+    el('silence').onclick = () => { if (busy) cancel(); else silence(); };
+    el('ai').onclick = async () => {
+      const token = ++generation;
+      setBusy(true, t('Descargando IA local…', 'Downloading local AI…'));
+      try { await client.loadAI(); }
+      catch (err) { if (token === generation) { client.cancel(); error(err); } }
+      finally { if (token === generation) setBusy(false); }
+    };
+    el('form').onsubmit = async (/** @type {Event} */ event) => {
+      event.preventDefault();
+      if (busy || recording) return;
+      const text = String(el('input').value).trim();
+      if (!text || text.length > 2000) return;
+      const shouldRead = voiceDraft || el('read').checked;
+      voiceDraft = false; silence();
+      const token = ++generation;
+      const lang = language();
+      message('user', text); el('input').value = '';
+      setBusy(true, t('Consultando registros…', 'Querying records…'));
+      try {
+        // postMessage makes one consistent structured clone; no live mutable references in worker.
+        const result = await client.request('ask', { text, dataset: app.dataset, cutoff: Date.now(), timeZone: app.timeZone(), language: lang, numberFormat: app.setting('numberFormat'), ai: client.aiReady });
+        if (token !== generation) return;
+        lastAnswer = result.text; answerLanguage = lang;
+        message('assistant', lastAnswer, result);
+        if (shouldRead) await read(token);
+      } catch (err) { if (token === generation) error(err); }
+      finally { if (token === generation) setBusy(false); }
+    };
+    el('listen').onclick = async () => {
+      if (busy || !lastAnswer) return;
+      if (audio) { await audio.play().catch(() => {}); return; }
+      const token = ++generation;
+      try { await read(token); } catch (err) { if (token === generation) error(err); }
+      finally { if (token === generation) setBusy(false); }
+    };
+    el('mic').onclick = async () => {
+      if (recording) { if (recorder) recorder.stop(); return; }
+      if (busy) return;
+      silence();
+      const token = ++generation;
+      const lang = language();
+      setBusy(true, t('Solicitando micrófono…', 'Requesting microphone…'));
+      try {
+        if (!root.isSecureContext || !root.navigator.mediaDevices || !root.MediaRecorder) throw new Error('MIC_UNAVAILABLE');
+        const nextStream = await root.navigator.mediaDevices.getUserMedia({ audio: true });
+        if (token !== generation) { nextStream.getTracks().forEach(track => track.stop()); return; }
+        stream = nextStream;
+        const nextRecorder = new MediaRecorder(stream);
+        recorder = nextRecorder;
+        /** @type {Blob[]} */ const chunks = [];
+        nextRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        nextRecorder.onstop = async () => {
+          if (token !== generation) return;
+          recording = false; releaseMic();
+          setBusy(true, t('Transcribiendo con Whisper local…', 'Transcribing with local Whisper…'));
+          /** @type {AudioContext | null} */ let decoder = null;
+          try {
+            const buffer = await new Blob(chunks, { type: nextRecorder.mimeType }).arrayBuffer();
+            decoder = new AudioContext();
+            const decoded = await decoder.decodeAudioData(buffer);
+            if (decoded.duration > 30) throw new Error('AUDIO_LIMIT');
+            const offline = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 16000)), 16000);
+            const source = offline.createBufferSource(); source.buffer = decoded; source.connect(offline.destination); source.start();
+            const rendered = await offline.startRendering();
+            if (token !== generation) return;
+            const text = await client.request('transcribe', { audio: rendered.getChannelData(0), language: lang }, 300_000);
+            if (token !== generation) return;
+            el('input').value = text; voiceDraft = true; el('input').focus();
+            setBusy(false, t('Revisa la transcripción y pulsa Consultar. La respuesta se leerá en voz alta.', 'Review the transcript and press Ask. The answer will be read aloud.'));
+          } catch (err) { if (token === generation) { error(err); setBusy(false); } }
+          finally { if (decoder) await decoder.close(); }
+        };
+        nextRecorder.onerror = () => { if (token === generation) { cancel(); error(new Error('MIC_FAILED')); } };
+        nextRecorder.start(); recording = true;
+        setBusy(false, t('Grabando (máximo 20 segundos). Pulsa Terminar grabación.', 'Recording (20 seconds maximum). Press Finish recording.'));
+        recordTimer = setTimeout(() => { if (token === generation && nextRecorder.state === 'recording') nextRecorder.stop(); }, 20_000);
+      } catch (err) { if (token === generation) { releaseMic(); error(err); setBusy(false); } }
+    };
+    message('assistant', t('Consulta: «¿Cuánto queda en el silo 6?», «Inventario total», «Alertas activas» o «Consumo del silo 8 ayer». Activa IA local para interpretar más formas de preguntar.', 'Try: “How much remains in silo 6?”, “Total inventory”, “Active alerts” or “Silo 8 consumption yesterday”. Enable local AI to interpret more ways of asking.'));
+    setBusy(false);
+    root.addEventListener('pagehide', () => { cancel(); });
+    return { refresh, cancel };
+  }
+  HS.assistantPanel = { mount };
+})(globalThis);
+
 /* ── src/ui/main.js ── */
 /**
  * hmiSilos · ui/main
@@ -5665,6 +6305,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
   /** @type {'local' | 'memory' | 'shared'} */ let storage = 'local';
   /** @type {{kind: string, params: any, def: any} | null} */ let dlgState = null;
   /** @type {SelfTestResult[] | null} */ let selftestCache = null;
+  /** @type {any} */ let assistant = null;
 
   // ── Preferencias del equipo ──────────────────────────────────────────────────
   function applyTheme() {
@@ -5682,6 +6323,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
     i18n.setLang(lang);
     document.documentElement.lang = lang;
     fmt.configure({ numberFormat: app.setting('numberFormat'), timeZone: app.timeZone(), lang });
+    if (assistant) assistant.refresh();
   }
 
   // ── Renderizado ──────────────────────────────────────────────────────────────
@@ -5719,6 +6361,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
     const c = context();
     const summary = reports.plantSummary(c.views, app.dataset.materials);
     renderChrome(c, summary);
+    if (assistant) assistant.refresh();
     let page;
     switch (ui.route) {
       case 'silo': page = views.detailPage(c, ui.siloId); break;
@@ -6012,6 +6655,7 @@ dialog::backdrop { background: rgba(10, 20, 35, 0.45); }
     applyPrefs();
     parseHash();
     bindEvents();
+    assistant = HS.assistantPanel.mount({ app, language: () => i18n.getLang(), storage: () => storage });
     render();
     platform.requestPersistence();
     setInterval(tick, 30_000);
